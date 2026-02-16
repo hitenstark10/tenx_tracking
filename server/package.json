@@ -1,0 +1,20 @@
+{
+    "name": "tenx-backend",
+    "version": "1.0.0",
+    "description": "Backend API for TenX Dashboard - Quotes, News & Data",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node --watch index.js"
+    },
+    "dependencies": {
+        "express": "^4.21.0",
+        "cors": "^2.8.5",
+        "better-sqlite3": "^11.7.0",
+        "node-fetch": "^3.3.2",
+        "cheerio": "^1.0.0",
+        "@supabase/supabase-js": "^2.49.0",
+        "dotenv": "^16.4.0"
+    }
+}

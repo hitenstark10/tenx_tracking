@@ -1,0 +1,212 @@
+.heatmap-container {
+    position: relative;
+    width: 100%;
+}
+
+.heatmap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.heatmap-month {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* ═══ Column Grid Layout ═══ */
+/* 7-day column layout: day names across the top, weeks as rows */
+.heatmap-col-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Day name header row */
+.heatmap-col-header {
+    display: grid;
+    grid-template-columns: 32px repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.heatmap-col-label-spacer {
+    /* Spacer above week labels column */
+    width: 100%;
+}
+
+.heatmap-col-day-label {
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 0 4px;
+}
+
+/* Each week row */
+.heatmap-col-row {
+    display: grid;
+    grid-template-columns: 32px repeat(7, 1fr);
+    gap: 4px;
+}
+
+.heatmap-col-week-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    opacity: 0.6;
+}
+
+/* ═══ Cells ═══ */
+.heatmap-cell {
+    aspect-ratio: 1;
+    width: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    min-height: 32px;
+}
+
+.heatmap-cell:not(.empty):hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+    z-index: 2;
+}
+
+.heatmap-cell.empty {
+    pointer-events: none;
+    background: transparent !important;
+}
+
+.heatmap-cell.today {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 1px;
+}
+
+.heatmap-cell.selected {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 1px;
+}
+
+.heatmap-cell-text {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.8);
+    user-select: none;
+    font-weight: 600;
+}
+
+/* ═══ Legend ═══ */
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 12px;
+    justify-content: flex-end;
+}
+
+.heatmap-legend-label {
+    font-size: 0.62rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+.heatmap-legend-cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+}
+
+/* ═══ Tooltip ═══ */
+.heatmap-tooltip {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    box-shadow: var(--shadow-lg);
+    pointer-events: none;
+    min-width: 170px;
+    transform: translateX(-50%);
+}
+
+.htt-date {
+    font-weight: 600;
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+    color: var(--accent-primary);
+}
+
+.htt-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 1px 0;
+}
+
+.htt-row b {
+    color: var(--text-primary);
+}
+
+.htt-total {
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 4px;
+    padding-top: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 600px) {
+
+    .heatmap-col-header,
+    .heatmap-col-row {
+        grid-template-columns: 24px repeat(7, 1fr);
+        gap: 3px;
+    }
+
+    .heatmap-cell {
+        min-height: 26px;
+        border-radius: 4px;
+    }
+
+    .heatmap-cell-text {
+        font-size: 0.58rem;
+    }
+
+    .heatmap-col-day-label {
+        font-size: 0.55rem;
+    }
+
+    .heatmap-col-week-label {
+        font-size: 0.5rem;
+    }
+
+    .heatmap-legend-cell {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+@media (max-width: 400px) {
+
+    .heatmap-col-header,
+    .heatmap-col-row {
+        grid-template-columns: 20px repeat(7, 1fr);
+        gap: 2px;
+    }
+
+    .heatmap-cell {
+        min-height: 22px;
+    }
+}

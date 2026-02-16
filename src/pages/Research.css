@@ -1,0 +1,132 @@
+.research-page {
+    animation: fadeIn 0.4s ease-out;
+}
+
+.research-analytics {
+    margin-bottom: 24px;
+}
+
+.research-analytics-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.paper-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+}
+
+.paper-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.paper-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.paper-card-name {
+    font-size: 1rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.paper-card-author {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.paper-card-desc {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dates Row */
+.paper-card-dates {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+.paper-card-dates svg {
+    color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+.paper-card-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.paper-slider-row {
+    display: flex;
+    align-items: center;
+}
+
+.paper-slider {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+.paper-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent-glow);
+    transition: transform 0.2s;
+}
+
+.paper-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.paper-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.paper-card-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .paper-grid {
+        grid-template-columns: 1fr;
+    }
+}
