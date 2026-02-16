@@ -15,7 +15,7 @@ import {
 import { getStopwatch, saveStopwatch, getCountdown, saveCountdown } from '../utils/storage';
 import './Dashboard.css';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://tenx-tracking-716qhpgum-hitens-projects-b4b594f8.vercel.app';
 
 export default function Dashboard() {
     const {
@@ -366,3 +366,4 @@ export default function Dashboard() {
         </div>
     );
 }
+
