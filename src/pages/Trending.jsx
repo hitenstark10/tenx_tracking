@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import './Trending.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://tenx-tracking-716qhpgum-hitens-projects-b4b594f8.vercel.app';
 
 export default function Trending() {
     const { bookmarks, toggleBookmark, markArticleRead, isArticleRead } = useData();
@@ -187,3 +187,4 @@ export default function Trending() {
         </div>
     );
 }
+
