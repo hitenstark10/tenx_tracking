@@ -30,9 +30,9 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 8px 24px;
+    padding: 8px 8px 16px;
     border-bottom: 1px solid var(--border-subtle);
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .logo-icon {
@@ -70,6 +70,70 @@
     color: var(--text-tertiary);
     font-weight: 500;
     letter-spacing: 0.5px;
+}
+
+/* ─── Profile Section ─── */
+.sidebar-profile-section {
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 12px;
+}
+
+.sidebar-profile-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    color: inherit;
+}
+
+.sidebar-profile-link:hover {
+    background: var(--bg-tertiary);
+}
+
+.sidebar-profile-link:hover .sidebar-profile-gear {
+    opacity: 1;
+}
+
+.sidebar-profile-img {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--border-color);
+}
+
+.sidebar-profile-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-profile-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-profile-role {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+.sidebar-profile-gear {
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
 }
 
 /* Nav */
@@ -189,15 +253,15 @@
 }
 
 .user-avatar {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     border-radius: var(--radius-sm);
     background: var(--accent-gradient);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
     flex-shrink: 0;
 }
@@ -226,7 +290,13 @@
     .sidebar .sidebar-user,
     .sidebar .sidebar-streak .streak-count,
     .sidebar .nav-indicator,
-    .sidebar .collapse-btn {
+    .sidebar .collapse-btn,
+    .sidebar .sidebar-profile-info,
+    .sidebar .sidebar-profile-gear {
         display: none;
+    }
+
+    .sidebar .sidebar-profile-link {
+        justify-content: center;
     }
 }

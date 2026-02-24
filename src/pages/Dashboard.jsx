@@ -5,7 +5,7 @@ import Heatmap from '../components/Heatmap';
 import {
     CheckCircle, Clock, Zap, BookOpen, FileText, TrendingUp,
     Play, Pause, Save, RotateCcw, Calendar, Flame, BarChart3,
-    Sparkles, Quote
+    Sparkles, Quote, Target, Timer, Hourglass, X, Percent
 } from 'lucide-react';
 import {
     getToday, formatMinutesToHHMM, formatSeconds,
@@ -14,8 +14,7 @@ import {
 } from '../utils/helpers';
 import { getStopwatch, saveStopwatch, getCountdown, saveCountdown } from '../utils/storage';
 import './Dashboard.css';
-
-const API_BASE = 'http://localhost:5000';
+import { BACKEND_URL } from '../config';
 
 export default function Dashboard() {
     const {
@@ -28,16 +27,39 @@ export default function Dashboard() {
     const [statFilter, setStatFilter] = useState('today');
     const [chartRange, setChartRange] = useState('7');
 
-    // ─── Quote from Groq AI API (fetched on page refresh only) ───
-    const [quote, setQuote] = useState({ text: '', author: '', category: '', type: '' });
-    useEffect(() => {
-        fetch(`${API_BASE}/api/quotes/random`)
-            .then(r => r.json())
-            .then(data => setQuote(data))
+    // ─── Quote from Groq AI API — Frontend Timer: every 144 min (~10/day) ───
+    const QUOTE_INTERVAL_MS = 144 * 60 * 1000; // 144 minutes
+    const [quote, setQuote] = useState(() => {
+        try {
+            const cached = localStorage.getItem('tenx_quote_cache');
+            return cached ? JSON.parse(cached) : { text: '', author: '', category: '', type: '' };
+        } catch { return { text: '', author: '', category: '', type: '' }; }
+    });
+    const quoteTimerRef = useRef(null);
+
+    const fetchQuote = useCallback(() => {
+        fetch(`${BACKEND_URL}/api/quotes/random?t=${Date.now()}`)
+            .then(r => { if (!r.ok) throw new Error('API error'); return r.json(); })
+            .then(data => {
+                setQuote(data);
+                try { localStorage.setItem('tenx_quote_cache', JSON.stringify(data)); } catch { }
+            })
             .catch(() => {
-                setQuote({ text: 'Every expert was once a beginner.', author: 'Helen Hayes', category: 'AI', type: 'quote', source: 'fallback' });
+                // On failure, keep the currently cached quote
+                const cached = localStorage.getItem('tenx_quote_cache');
+                if (cached) {
+                    try { setQuote(JSON.parse(cached)); } catch { }
+                } else {
+                    setQuote({ text: 'Every expert was once a beginner.', author: 'Helen Hayes', category: 'AI', type: 'quote', source: 'fallback' });
+                }
             });
-    }, []); // Only on mount (dashboard page refresh)
+    }, []);
+
+    useEffect(() => {
+        fetchQuote(); // Fetch immediately on mount
+        quoteTimerRef.current = setInterval(fetchQuote, QUOTE_INTERVAL_MS);
+        return () => clearInterval(quoteTimerRef.current);
+    }, [fetchQuote]);
 
     // ─── Persistent Stopwatch ───
     const [swState, setSwState] = useState(() => getStopwatch());
@@ -89,9 +111,10 @@ export default function Dashboard() {
         saveStopwatch(next);
     };
 
-    // ─── Persistent Countdown ───
+    // ─── Persistent Countdown (mini card) ───
     const [cdTarget, setCdTarget] = useState(() => getCountdown());
     const [cdRemaining, setCdRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: true });
+    const [showCdInput, setShowCdInput] = useState(false);
 
     useEffect(() => {
         saveCountdown(cdTarget);
@@ -102,44 +125,56 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, [cdTarget]);
 
+    const handleSetCountdown = (val) => {
+        setCdTarget(val);
+        setShowCdInput(false);
+    };
+
     // ─── Stat computations ───
     const today = getToday();
-
-    // Today values
     const todayStudyMin = studySessions.filter(s => s.date === today).reduce((s, x) => s + x.totalMinutes, 0);
+
+    // TODAY curriculum: only items with date === today
     let todayCurrTotal = 0, todayCurrDone = 0;
     courses.forEach(c => c.topics?.forEach(t => {
-        if (t.completedDate === today) { todayCurrTotal++; todayCurrDone++; }
-        else if (t.date === today || !t.completedDate) todayCurrTotal++;
+        if (t.date === today) {
+            todayCurrTotal++;
+            if (t.completed) todayCurrDone++;
+        }
         t.subtopics?.forEach(s => {
-            if (s.completedDate === today) { todayCurrTotal++; todayCurrDone++; }
-            else if (s.date === today || !s.completedDate) todayCurrTotal++;
+            if (s.date === today) {
+                todayCurrTotal++;
+                if (s.completed) todayCurrDone++;
+            }
         });
     }));
+
+    // Papers that are 100% done
+    const fullyCompletedPapers = researchPapers.filter(p => p.completionPercentage >= 100).length;
     const todayPapersUpdated = researchPapers.filter(p => p.lastUpdated === today).length;
+
+    // Overall Progression
+    const overallProgression = totalCurriculumItems > 0
+        ? Math.round((completedCurriculumItems / totalCurriculumItems) * 100) : 0;
+    const todayProgression = todayCurrTotal > 0 ? Math.round((todayCurrDone / todayCurrTotal) * 100) : 0;
 
     const statData = statFilter === 'today' ? {
         tasks: `${todayCompletedTasks}/${todayTasks.length}`,
         study: formatMinutesToHHMM(todayStudyMin),
         curriculum: `${todayCurrDone}/${todayCurrTotal || '-'}`,
-        papers: `${todayPapersUpdated}/${researchPapers.length}`,
+        progression: `${todayProgression}%`,
     } : {
         tasks: `${dailyTasks.filter(t => t.completed).length}/${dailyTasks.length}`,
         study: formatMinutesToHHMM(totalStudyMinutes),
         curriculum: `${completedCurriculumItems}/${totalCurriculumItems}`,
-        papers: `${completedPapers}/${researchPapers.length}`,
+        progression: `${overallProgression}%`,
     };
-
-    // ─── Average completion ───
-    const avgCompletion = totalCurriculumItems > 0
-        ? Math.round((completedCurriculumItems / totalCurriculumItems) * 100) : 0;
 
     // ─── Today's Course Topics/Subtopics ───
     const todayCourseItems = useMemo(() => {
         const items = [];
         courses.forEach(c => {
             c.topics?.forEach(t => {
-                // Show topics that are scheduled for today OR were completed today
                 if (t.date === today || t.completedDate === today) {
                     items.push({ type: 'topic', name: t.name, course: c.name, completed: t.completed, priority: t.priority || 'medium', startTime: t.startTime, endTime: t.endTime });
                 }
@@ -156,7 +191,6 @@ export default function Dashboard() {
     // ─── Charts Data ───
     const days = chartRange === '7' ? getLast7Days() : getLast30Days();
     const chartLabels = days.map(d => formatDateShort(d));
-
     const taskCompData = days.map(d => dailyTasks.filter(t => t.date === d && t.completed).length);
     const studyChartData = days.map(d => studySessions.filter(s => s.date === d).reduce((s, x) => s + x.totalMinutes, 0));
     const currChartData = days.map(d => {
@@ -170,7 +204,6 @@ export default function Dashboard() {
     const paperChartData = days.map(d => researchPapers.filter(p => p.lastUpdated === d).length);
 
     const [activeChart, setActiveChart] = useState('tasks');
-
     const chartConfig = {
         tasks: { label: 'Tasks Completed', data: taskCompData, color: '#818cf8' },
         study: { label: 'Study Minutes', data: studyChartData, color: '#34d399' },
@@ -184,32 +217,90 @@ export default function Dashboard() {
                 <h1><TrendingUp size={28} /> Dashboard</h1>
             </div>
 
-            {/* ═══ ROW 0: Motivation Quote — LARGE DECORATIVE CARD AT TOP ═══ */}
-            <div className="card dash-quote-hero">
-                <div className="dash-quote-hero-bg" />
-                <div className="dash-quote-hero-content">
-                    <div className="dash-quote-hero-icon">
-                        <Sparkles size={32} />
-                    </div>
-                    <div className="dash-quote-hero-body">
-                        <div className="dash-quote-hero-label">
-                            <Quote size={14} /> {quote.type === 'fact' ? 'AI/ML Fact' : 'Daily Inspiration'}
-                            {quote.category && <span className="dash-quote-cat">{quote.category}</span>}
-                            {quote.source === 'groq_ai' && <span className="dash-quote-ai-badge">✨ AI Generated</span>}
+            {/* ═══ ROW 0: Motivation Quote + Countdown Timer ═══ */}
+            <div className="dash-top-row">
+                <div className="card dash-quote-hero">
+                    <div className="dash-quote-hero-bg" />
+                    <div className="dash-quote-hero-content">
+                        <div className="dash-quote-hero-icon">
+                            <Sparkles size={28} />
                         </div>
-                        {quote.text ? (
-                            <>
-                                <blockquote className="dash-quote-hero-text">"{quote.text}"</blockquote>
-                                <cite className="dash-quote-hero-author">— {quote.author}</cite>
-                            </>
-                        ) : (
-                            <blockquote className="dash-quote-hero-text" style={{ opacity: 0.4 }}>Loading inspiration from Groq AI...</blockquote>
-                        )}
+                        <div className="dash-quote-hero-body">
+                            <div className="dash-quote-hero-label">
+                                <Quote size={14} /> {quote.type === 'fact' ? 'AI/ML Fact' : 'Daily Inspiration'}
+                                {quote.category && <span className="dash-quote-cat">{quote.category}</span>}
+                                {quote.source === 'groq_ai' && <span className="dash-quote-ai-badge">✨ AI Generated</span>}
+                            </div>
+                            {quote.text ? (
+                                <>
+                                    <blockquote className="dash-quote-hero-text">"{quote.text}"</blockquote>
+                                    <cite className="dash-quote-hero-author">— {quote.author}</cite>
+                                </>
+                            ) : (
+                                <blockquote className="dash-quote-hero-text" style={{ opacity: 0.4 }}>Loading inspiration from Groq AI...</blockquote>
+                            )}
+                        </div>
                     </div>
+                </div>
+
+                {/* Countdown Timer Card — Right Side of Quotes */}
+                <div className="card dash-countdown-card" onClick={() => !cdTarget && setShowCdInput(true)}>
+                    <div className="dash-cd-icon"><Hourglass size={22} color="var(--accent-primary)" /></div>
+                    {cdTarget && !cdRemaining.expired ? (
+                        <div className="dash-cd-display">
+                            <div className="dash-cd-segment">
+                                <span className="dash-cd-num">{cdRemaining.days}</span>
+                                <span className="dash-cd-unit">days</span>
+                            </div>
+                            <span className="dash-cd-sep">:</span>
+                            <div className="dash-cd-segment">
+                                <span className="dash-cd-num">{String(cdRemaining.hours).padStart(2, '0')}</span>
+                                <span className="dash-cd-unit">hrs</span>
+                            </div>
+                            <span className="dash-cd-sep">:</span>
+                            <div className="dash-cd-segment">
+                                <span className="dash-cd-num">{String(cdRemaining.minutes).padStart(2, '0')}</span>
+                                <span className="dash-cd-unit">min</span>
+                            </div>
+                            <span className="dash-cd-sep">:</span>
+                            <div className="dash-cd-segment">
+                                <span className="dash-cd-num">{String(cdRemaining.seconds).padStart(2, '0')}</span>
+                                <span className="dash-cd-unit">sec</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="dash-cd-display">
+                            <span className="dash-cd-placeholder">{cdTarget ? '⏰ Expired!' : 'Set Target Date'}</span>
+                        </div>
+                    )}
+                    <div className="dash-cd-bottom-row">
+                        <span className="dash-cd-label">Countdown Timer</span>
+                        <div className="dash-cd-actions">
+                            <button className="btn-micro btn-micro-primary" onClick={(e) => { e.stopPropagation(); setShowCdInput(true); }} title="Set countdown">
+                                <Timer size={11} />
+                            </button>
+                            {cdTarget && (
+                                <button className="btn-micro btn-micro-ghost" onClick={(e) => { e.stopPropagation(); setCdTarget(''); }} title="Clear">
+                                    <X size={11} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    {showCdInput && (
+                        <div className="dash-cd-input-popup" onClick={e => e.stopPropagation()}>
+                            <input
+                                type="datetime-local"
+                                className="input input-sm"
+                                autoFocus
+                                onChange={e => handleSetCountdown(e.target.value)}
+                                onBlur={() => setTimeout(() => setShowCdInput(false), 200)}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* ═══ ROW 1: Unified Stat Card ═══ */}
+            {/* ═══ ROW 1: Overview Stats (4 cards: Tasks, Study, Curriculum, Progression %) ═══ */}
             <div className="card dash-stat-unified">
                 <div className="dash-stat-header">
                     <h3><BarChart3 size={18} /> Overview</h3>
@@ -231,113 +322,123 @@ export default function Dashboard() {
                         <div className="dash-stat-icon" style={{ background: 'var(--warning-bg)' }}><BookOpen size={20} color="var(--warning)" /></div>
                         <div><div className="dash-stat-label">Curriculum</div><div className="dash-stat-value">{statData.curriculum}</div></div>
                     </div>
-                    <div className="dash-stat-item">
-                        <div className="dash-stat-icon" style={{ background: 'var(--danger-bg)' }}><FileText size={20} color="var(--danger)" /></div>
-                        <div><div className="dash-stat-label">Papers Done</div><div className="dash-stat-value">{statData.papers}</div></div>
+                    <div className="dash-stat-item dash-stat-progression">
+                        <div className="dash-stat-prog-ring">
+                            <svg viewBox="0 0 44 44" className="dash-stat-ring-svg">
+                                <circle cx="22" cy="22" r="18" fill="none" stroke="var(--bg-tertiary)" strokeWidth="4" />
+                                <circle cx="22" cy="22" r="18" fill="none" stroke="var(--accent-primary)" strokeWidth="4"
+                                    strokeDasharray={`${(statFilter === 'today' ? todayProgression : overallProgression) * 1.131} 113.1`}
+                                    strokeLinecap="round" transform="rotate(-90 22 22)"
+                                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                                />
+                            </svg>
+                            <Percent size={14} className="dash-stat-ring-icon" />
+                        </div>
+                        <div><div className="dash-stat-label">Progression</div><div className="dash-stat-value">{statData.progression}</div></div>
                     </div>
                 </div>
             </div>
 
-            {/* ═══ ROW 2: Calendar + Streak/Avg ═══ */}
+            {/* ═══ ROW 2: Calendar + Right Side ═══ */}
             <div className="dash-cal-streak-row">
                 <div className="card dash-cal-card">
-                    <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Calendar size={16} color="var(--accent-primary)" /> Activity Heatmap
+                    <h4 style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Calendar size={20} color="var(--accent-primary)" /> Activity Heatmap
                     </h4>
                     <Heatmap activityLog={activityLog} dailyTasks={dailyTasks} courses={courses} researchPapers={researchPapers} />
                 </div>
-                <div className="dash-streak-avg-col">
-                    <div className="card dash-streak-card">
-                        <Flame size={28} color="#f59e0b" />
-                        <div className="dash-streak-num">{streak.count}</div>
-                        <div className="dash-streak-label">Day Streak</div>
-                    </div>
-                    <div className="card dash-avg-card">
-                        <TrendingUp size={28} color="var(--success)" />
-                        <div className="dash-avg-num">{avgCompletion}%</div>
-                        <div className="dash-avg-label">Avg Completion</div>
-                    </div>
-                </div>
-            </div>
 
-            {/* ═══ ROW 3: Stopwatch, Countdown ═══ */}
-            <div className="dash-time-row">
-                <div className="card dash-timer-card">
-                    <h4>⏱️ Study Stopwatch</h4>
-                    <div className="timer-display">{formatSeconds(swState.isRunning ? swDisplay : swState.accumulatedSeconds)}</div>
-                    <div className="timer-actions">
-                        <button className={`btn ${swState.isRunning ? 'btn-danger' : 'btn-primary'} btn-sm`} onClick={swToggle}>
-                            {swState.isRunning ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Start</>}
-                        </button>
-                        <button className="btn btn-secondary btn-sm" onClick={swSave} disabled={calcElapsed() < 1}>
-                            <Save size={14} /> Save
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={swReset}>
-                            <RotateCcw size={14} />
-                        </button>
-                    </div>
-                </div>
-                <div className="card dash-timer-card">
-                    <h4>⏳ Countdown Timer</h4>
-                    {cdTarget && !cdRemaining.expired ? (
-                        <div className="timer-display">
-                            {cdRemaining.days}d {String(cdRemaining.hours).padStart(2, '0')}:{String(cdRemaining.minutes).padStart(2, '0')}:{String(cdRemaining.seconds).padStart(2, '0')}
+                {/* Right side: mini cards + snapshot cards */}
+                <div className="dash-right-panel">
+                    {/* Row 1: Papers Done (100%), Day Streak, Stopwatch */}
+                    <div className="dash-right-row-3">
+                        {/* Papers 100% Done */}
+                        <div className="card dash-mini-card">
+                            <FileText size={22} color="var(--danger)" />
+                            <div className="dash-mini-value">{fullyCompletedPapers}/{researchPapers.length}</div>
+                            <div className="dash-mini-label">Papers 100%</div>
                         </div>
-                    ) : (
-                        <div className="timer-display" style={{ fontSize: '1.2rem', color: 'var(--text-tertiary)' }}>
-                            {cdTarget ? 'Expired!' : 'Set a target'}
+
+                        {/* Day Streak */}
+                        <div className="card dash-mini-card">
+                            <Flame size={22} color="#f59e0b" />
+                            <div className="dash-mini-value">{streak.count}</div>
+                            <div className="dash-mini-label">Day Streak</div>
                         </div>
-                    )}
-                    <input type="datetime-local" className="input" style={{ marginTop: 8 }} value={cdTarget} onChange={e => setCdTarget(e.target.value)} />
+
+                        {/* Stopwatch */}
+                        <div className="card dash-mini-card dash-stopwatch-mini">
+                            <Timer size={18} color="var(--accent-primary)" />
+                            <div className="dash-mini-value" style={{ fontSize: '1.1rem' }}>
+                                {formatSeconds(swState.isRunning ? swDisplay : swState.accumulatedSeconds)}
+                            </div>
+                            <div className="dash-sw-actions">
+                                <button className={`btn-micro ${swState.isRunning ? 'btn-micro-danger' : 'btn-micro-primary'}`} onClick={swToggle}>
+                                    {swState.isRunning ? <Pause size={12} /> : <Play size={12} />}
+                                </button>
+                                <button className="btn-micro btn-micro-ghost" onClick={swSave} disabled={calcElapsed() < 1}>
+                                    <Save size={12} />
+                                </button>
+                                <button className="btn-micro btn-micro-ghost" onClick={swReset}>
+                                    <RotateCcw size={12} />
+                                </button>
+                            </div>
+                            <div className="dash-mini-label">Stopwatch</div>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Today's Tasks + Today's Course Topics */}
+                    <div className="dash-right-row-2">
+                        <div className="card dash-snapshot-card">
+                            <h4 className="dash-snapshot-title"><CheckCircle size={16} /> Today's Tasks</h4>
+                            {todayTasks.length === 0 ? (
+                                <p className="dash-snapshot-empty">No tasks for today</p>
+                            ) : (
+                                <ul className="dash-task-list">
+                                    {todayTasks.map(t => (
+                                        <li key={t.id} className={t.completed ? 'done' : ''}>
+                                            <span className={`dot priority-${t.priority}`} />
+                                            <span className="truncate" style={{ flex: 1 }}>{t.name}</span>
+                                            {(t.startTime || t.endTime) && (
+                                                <span className="dash-time-badge">
+                                                    {t.startTime}{t.startTime && t.endTime ? '–' : ''}{t.endTime}
+                                                </span>
+                                            )}
+                                            {t.completed && <CheckCircle size={14} color="var(--success)" />}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div className="card dash-snapshot-card">
+                            <h4 className="dash-snapshot-title"><BookOpen size={16} /> Today's Course Topics</h4>
+                            {todayCourseItems.length === 0 ? (
+                                <p className="dash-snapshot-empty">No topics scheduled for today</p>
+                            ) : (
+                                <ul className="dash-task-list">
+                                    {todayCourseItems.map((item, i) => (
+                                        <li key={i} className={item.completed ? 'done' : ''}>
+                                            <span className={`dot priority-${item.priority}`} />
+                                            <span className="truncate" style={{ flex: 1 }}>
+                                                {item.type === 'subtopic' ? '  ↳ ' : ''}{item.name}
+                                            </span>
+                                            <span className="dash-course-tag">{item.course}</span>
+                                            {(item.startTime || item.endTime) && (
+                                                <span className="dash-time-badge">
+                                                    {item.startTime}{item.startTime && item.endTime ? '–' : ''}{item.endTime}
+                                                </span>
+                                            )}
+                                            {item.completed && <CheckCircle size={14} color="var(--success)" />}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* ═══ ROW 4: Today's Tasks + Today's Course Topics ═══ */}
-            <div className="dash-snapshots">
-                <div className="card">
-                    <h4 className="section-title"><CheckCircle size={18} /> Today's Tasks</h4>
-                    {todayTasks.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No tasks for today</p> : (
-                        <ul className="dash-task-list">
-                            {todayTasks.map(t => (
-                                <li key={t.id} className={t.completed ? 'done' : ''}>
-                                    <span className={`dot priority-${t.priority}`} />
-                                    <span className="truncate" style={{ flex: 1 }}>{t.name}</span>
-                                    {(t.startTime || t.endTime) && (
-                                        <span className="dash-time-badge">
-                                            {t.startTime}{t.startTime && t.endTime ? '–' : ''}{t.endTime}
-                                        </span>
-                                    )}
-                                    {t.completed && <CheckCircle size={14} color="var(--success)" />}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-                <div className="card">
-                    <h4 className="section-title"><BookOpen size={18} /> Today's Course Topics</h4>
-                    {todayCourseItems.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No topics scheduled for today</p> : (
-                        <ul className="dash-task-list">
-                            {todayCourseItems.map((item, i) => (
-                                <li key={i} className={item.completed ? 'done' : ''}>
-                                    <span className={`dot priority-${item.priority}`} />
-                                    <span className="truncate" style={{ flex: 1 }}>
-                                        {item.type === 'subtopic' ? '  ↳ ' : ''}{item.name}
-                                    </span>
-                                    <span className="dash-course-tag">{item.course}</span>
-                                    {(item.startTime || item.endTime) && (
-                                        <span className="dash-time-badge">
-                                            {item.startTime}{item.startTime && item.endTime ? '–' : ''}{item.endTime}
-                                        </span>
-                                    )}
-                                    {item.completed && <CheckCircle size={14} color="var(--success)" />}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            </div>
-
-            {/* ═══ ROW 5: Unified Charts Card ═══ */}
+            {/* ═══ Charts Card ═══ */}
             <div className="card dash-charts-unified">
                 <div className="dash-charts-header">
                     <div className="dash-chart-tabs">

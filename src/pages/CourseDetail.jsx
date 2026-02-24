@@ -107,12 +107,56 @@ export default function CourseDetail() {
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const url = URL.createObjectURL(file);
-        const type = file.type.includes('video') ? 'video' : 'pdf';
-        setResourceForm({ name: file.name, type, url });
+
+        // File size limit: 10MB max for base64 storage in Supabase JSONB
+        const MAX_SIZE_MB = 10;
+        const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+        if (file.size > MAX_SIZE_BYTES) {
+            alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is ${MAX_SIZE_MB}MB.\n\nTip: For larger files, paste a URL link instead.`);
+            e.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const type = file.type.includes('video') ? 'video' : file.type.includes('pdf') ? 'pdf' : 'doc';
+            setResourceForm({ name: file.name, type, url: reader.result });
+        };
+        reader.onerror = () => {
+            alert('Failed to read file. Please try again.');
+            e.target.value = '';
+        };
+        reader.readAsDataURL(file);
     };
 
     const progress = getCourseProgress(course);
+
+    // ─── Word Frequency from topic/subtopic names ───
+    const wordFrequency = useMemo(() => {
+        const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'it', 'as', 'be', 'are', 'was', 'were', 'this', 'that', 'how', 'what', 'vs', '-', '&', 'using', 'into']);
+        const freq = {};
+        const processText = (text) => {
+            if (!text) return;
+            text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).forEach(word => {
+                if (word.length > 2 && !stopWords.has(word)) {
+                    freq[word] = (freq[word] || 0) + 1;
+                }
+            });
+        };
+
+        (course.topics || []).forEach(t => {
+            processText(t.name);
+            (t.subtopics || []).forEach(s => processText(s.name));
+        });
+
+        return Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 40)
+            .map(([word, count]) => ({ word, count }));
+    }, [course.topics]);
+
+    const maxFreq = wordFrequency.length > 0 ? wordFrequency[0].count : 1;
+    const wordColors = ['#818cf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#f87171', '#22d3ee', '#c084fc', '#fb923c'];
 
     const filteredTopics = useMemo(() => {
         return (course.topics || []).filter(t => {
@@ -159,6 +203,32 @@ export default function CourseDetail() {
                     <div className="progress-bar" style={{ maxWidth: 300, marginTop: 8 }}><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
                 </div>
             </div>
+
+            {/* ═══ Word Frequency Cloud ═══ */}
+            {wordFrequency.length > 0 && (
+                <div className="card cd-word-cloud">
+                    <h4 className="cd-word-cloud-title">📊 Topic Word Frequency</h4>
+                    <div className="cd-word-cloud-body">
+                        {wordFrequency.map((item, i) => {
+                            const scale = 0.6 + (item.count / maxFreq) * 1.4;
+                            return (
+                                <span
+                                    key={item.word}
+                                    className="cd-word"
+                                    style={{
+                                        fontSize: `${scale}rem`,
+                                        color: wordColors[i % wordColors.length],
+                                        opacity: 0.5 + (item.count / maxFreq) * 0.5,
+                                    }}
+                                    title={`${item.word}: ${item.count} occurrence${item.count > 1 ? 's' : ''}`}
+                                >
+                                    {item.word}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <div className="filter-bar">
                 <div className="search-wrapper"><Search size={16} /><input className="input" placeholder="Search topics & subtopics..." value={searchQ} onChange={e => setSearchQ(e.target.value)} /></div>
@@ -274,28 +344,100 @@ export default function CourseDetail() {
                             <span>{viewerModal.name}</span>
                             <span className="badge badge-info" style={{ marginLeft: 8 }}>{viewerModal.type}</span>
                         </div>
-                        <button className="btn btn-ghost btn-icon resource-fullscreen-close" onClick={() => setViewerModal(null)} title="Close">
-                            ✕
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            {viewerModal.url && !viewerModal.url.startsWith('data:') && (
+                                <a href={viewerModal.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem' }}>
+                                    Open Original ↗
+                                </a>
+                            )}
+                            <button className="btn btn-ghost btn-icon resource-fullscreen-close" onClick={() => setViewerModal(null)} title="Close">
+                                ✕
+                            </button>
+                        </div>
                     </div>
                     <div className="resource-fullscreen-body">
-                        {viewerModal.type === 'video' ? (
-                            <video src={viewerModal.url} controls autoPlay className="resource-fullscreen-video">
-                                Your browser does not support video playback.
-                            </video>
-                        ) : viewerModal.type === 'doc' || viewerModal.name?.match(/\.(doc|docx)$/i) ? (
-                            <iframe
-                                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerModal.url)}&embedded=true`}
-                                className="resource-fullscreen-iframe"
-                                title={viewerModal.name}
-                            />
-                        ) : (
-                            <iframe
-                                src={viewerModal.url}
-                                className="resource-fullscreen-iframe"
-                                title={viewerModal.name}
-                            />
-                        )}
+                        {(() => {
+                            const url = viewerModal.url || '';
+                            // YouTube detection
+                            const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]{11})/);
+                            if (ytMatch) {
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`}
+                                        className="resource-fullscreen-iframe"
+                                        title={viewerModal.name}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                );
+                            }
+                            // Google Drive detection
+                            const driveFileMatch = url.match(/drive\.google\.com\/file\/d\/([\w-]+)/);
+                            const driveOpenMatch = url.match(/drive\.google\.com\/open\?id=([\w-]+)/);
+                            const driveId = driveFileMatch?.[1] || driveOpenMatch?.[1];
+                            if (driveId) {
+                                return (
+                                    <iframe
+                                        src={`https://drive.google.com/file/d/${driveId}/preview`}
+                                        className="resource-fullscreen-iframe"
+                                        title={viewerModal.name}
+                                        allow="autoplay; encrypted-media"
+                                        allowFullScreen
+                                    />
+                                );
+                            }
+                            // Loom detection
+                            const loomMatch = url.match(/loom\.com\/share\/([\w-]+)/);
+                            if (loomMatch) {
+                                return (
+                                    <iframe
+                                        src={`https://www.loom.com/embed/${loomMatch[1]}`}
+                                        className="resource-fullscreen-iframe"
+                                        title={viewerModal.name}
+                                        allowFullScreen
+                                    />
+                                );
+                            }
+                            // Vimeo detection
+                            const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+                            if (vimeoMatch) {
+                                return (
+                                    <iframe
+                                        src={`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`}
+                                        className="resource-fullscreen-iframe"
+                                        title={viewerModal.name}
+                                        allow="autoplay; fullscreen"
+                                        allowFullScreen
+                                    />
+                                );
+                            }
+                            // Base64 or direct video file
+                            if (viewerModal.type === 'video' || url.match(/\.(mp4|webm|ogg|mov)(\?|$)/i) || url.startsWith('data:video')) {
+                                return (
+                                    <video src={url} controls autoPlay className="resource-fullscreen-video">
+                                        Your browser does not support video playback.
+                                    </video>
+                                );
+                            }
+                            // Doc files
+                            if (viewerModal.type === 'doc' || viewerModal.name?.match(/\.(doc|docx)$/i)) {
+                                return (
+                                    <iframe
+                                        src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+                                        className="resource-fullscreen-iframe"
+                                        title={viewerModal.name}
+                                    />
+                                );
+                            }
+                            // Default: iframe for PDFs etc
+                            return (
+                                <iframe
+                                    src={url}
+                                    className="resource-fullscreen-iframe"
+                                    title={viewerModal.name}
+                                />
+                            );
+                        })()}
                     </div>
                 </div>
             )}

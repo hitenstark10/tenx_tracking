@@ -51,8 +51,11 @@ export default function Research() {
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const url = URL.createObjectURL(file);
-        setForm({ ...form, documentUrl: url, name: form.name || file.name });
+        const reader = new FileReader();
+        reader.onload = () => {
+            setForm({ ...form, documentUrl: reader.result, name: form.name || file.name });
+        };
+        reader.readAsDataURL(file);
     };
 
     const filtered = useMemo(() => {

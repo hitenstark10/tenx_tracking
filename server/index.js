@@ -1,636 +1,625 @@
 // ═══════════════════════════════════════════════════════
-// TenX Backend API — Express + Supabase + Groq AI + GNews
+// TENX Track Learning — Backend API Server v3.0
+// Clean rebuild: Groq AI Quotes + GNews + Supabase CRUD
 // ═══════════════════════════════════════════════════════
+
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import fetch from 'node-fetch';
-import * as cheerio from 'cheerio';
+import { createClient } from '@supabase/supabase-js';
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// ─── Middleware ───
-app.use(cors({
-    origin: process.env.FRONTEND_URL || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-}));
-app.use(express.json({ limit: '10mb' }));
-
-// ─── Database Setup ───
-let db = null;
-let supabase = null;
-const DB_MODE = process.env.DB_MODE || 'sqlite';
-
-if (DB_MODE === 'supabase' && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-    try {
-        const { createClient } = await import('@supabase/supabase-js');
-        supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-        console.log('✅ Connected to Supabase PostgreSQL');
-    } catch (e) {
-        console.warn('⚠️ Supabase connection failed, falling back to SQLite:', e.message);
-    }
-}
-
-if (!supabase) {
-    const Database = (await import('better-sqlite3')).default;
-    db = new Database('tenx.db');
-    db.pragma('journal_mode = WAL');
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS quotes_cache (
-            id INTEGER PRIMARY KEY,
-            data TEXT,
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS news_cache (
-            id INTEGER PRIMARY KEY,
-            data TEXT,
-            cache_date TEXT,
-            fetch_count INTEGER DEFAULT 0,
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-    `);
-    // Create generic data tables
-    ['user_tasks', 'user_courses', 'user_papers', 'user_sessions',
-        'user_bookmarks', 'user_activity', 'user_streak', 'user_profile',
-        'user_news_read'].forEach(t => {
-            db.exec(`CREATE TABLE IF NOT EXISTS ${t} (
-            user_id TEXT NOT NULL,
-            data TEXT NOT NULL DEFAULT '[]',
-            updated_at TEXT DEFAULT (datetime('now')),
-            PRIMARY KEY (user_id)
-        )`);
-        });
-    console.log('✅ SQLite database initialized');
-}
-
-// ─── Groq AI Configuration ───
+// ─── Configuration ───────────────────────────────────
+const PORT = process.env.PORT || 5005;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-70b-versatile';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-
-// ─── GNews Configuration ───
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY || '';
 
-// ─── Fallback Quotes (used when Groq API is unavailable) ───
-const FALLBACK_QUOTES = [
-    { text: "The question of whether a computer can think is no more interesting than whether a submarine can swim.", author: "Edsger Dijkstra", category: "AI" },
-    { text: "Machine intelligence is the last invention that humanity will ever need to make.", author: "Nick Bostrom", category: "AI" },
-    { text: "Artificial intelligence would be the ultimate version of Google.", author: "Larry Page", category: "AI" },
-    { text: "A year spent in artificial intelligence is enough to make one believe in God.", author: "Alan Perlis", category: "AI" },
-    { text: "In God we trust. All others must bring data.", author: "W. Edwards Deming", category: "DS" },
-    { text: "Data is the new oil.", author: "Clive Humby", category: "DS" },
-    { text: "Machine learning is the science of getting computers to learn without being explicitly programmed.", author: "Arthur Samuel", category: "ML" },
-    { text: "Deep learning is a superpower.", author: "Andrew Ng", category: "DL" },
-    { text: "The future belongs to those who learn more skills and combine them in creative ways.", author: "Robert Greene", category: "AI" },
-    { text: "Every expert was once a beginner.", author: "Helen Hayes", category: "AI" },
+// ─── Express Setup ───────────────────────────────────
+const app = express();
+app.use(cors({
+    origin: [
+        FRONTEND_URL,
+        'http://localhost:5173', 'http://localhost:5174',
+        'http://localhost:3000', 'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+    ],
+    credentials: true,
+}));
+app.use(express.json({ limit: '50mb' }));
+
+// ─── Supabase Client ─────────────────────────────────
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_KEY in .env');
+    process.exit(1);
+}
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+console.log('✅ Supabase connected');
+
+
+// ═══════════════════════════════════════════════════════
+// 1. QUOTES API — Groq Platform AI
+//    Every call generates a FRESH, UNIQUE quote.
+//    No server-side caching. Frontend handles timers.
+// ═══════════════════════════════════════════════════════
+
+const QUOTE_CATEGORIES = [
+    'Artificial Intelligence', 'Machine Learning', 'Deep Learning',
+    'Data Science', 'Neural Networks', 'Natural Language Processing',
+    'Computer Vision', 'Reinforcement Learning', 'Robotics',
+    'AI Ethics', 'Generative AI', 'AI History',
 ];
 
-// ─── Groq AI Quote Fetcher ───
-async function fetchGroqQuote() {
+// ─── Quote history to prevent repetition ───
+const quoteHistory = []; // rolling buffer of last 20 quotes
+const MAX_QUOTE_HISTORY = 20;
+
+async function generateQuoteFromGroq() {
     if (!GROQ_API_KEY) return null;
 
-    try {
-        const response = await fetch(GROQ_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${GROQ_API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: GROQ_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a motivational AI/ML knowledge assistant. Return ONLY valid JSON, no markdown, no explanation.'
-                    },
-                    {
-                        role: 'user',
-                        content: `Generate a unique, inspiring quote or fact about one of these topics: Artificial Intelligence, Machine Learning, Deep Learning, Data Science, Neural Networks, Computer Vision, NLP, Reinforcement Learning, or AI Ethics.
+    const fetch = (await import('node-fetch')).default;
+    const category = QUOTE_CATEGORIES[Math.floor(Math.random() * QUOTE_CATEGORIES.length)];
+    const isQuote = Math.random() > 0.4;
+    const seed = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-Return EXACTLY this JSON format:
-{"text": "the quote or fact text here", "author": "Author Name or 'AI/ML Fact'", "category": "AI|ML|DL|DS", "type": "quote|fact"}
+    const prompt = isQuote
+        ? `Generate one unique, inspiring, rarely-cited quote about "${category}" from a real expert, scientist, or pioneer in the field. Avoid commonly known or generic quotes. Be creative and surprising. Unique seed: ${seed}. Return ONLY valid JSON (no markdown, no code blocks): {"text": "the quote text", "author": "Full Name", "category": "${category}", "type": "quote"}`
+        : `Share one fascinating, lesser-known fact about "${category}" that would surprise even a professional in the field. Unique seed: ${seed}. Return ONLY valid JSON (no markdown, no code blocks): {"text": "the fact text", "author": "Research", "category": "${category}", "type": "fact"}`;
 
-Make it thought-provoking, educational, and motivating for an AI/ML learner. Include real quotes from researchers like Geoffrey Hinton, Yann LeCun, Andrew Ng, Fei-Fei Li, Demis Hassabis, Andrej Karpathy, or share fascinating facts about neural networks, transformers, reinforcement learning breakthroughs, etc.`
-                    }
-                ],
-                temperature: 0.9,
-                max_tokens: 300,
-                response_format: { type: 'json_object' },
-            }),
-            signal: AbortSignal.timeout(10000),
-        });
+    // Try primary model, then fallback model
+    const models = [GROQ_MODEL, 'llama-3.3-70b-versatile'];
 
-        if (!response.ok) {
-            console.warn('Groq API error:', response.status);
-            return null;
+    for (const model of models) {
+        try {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${GROQ_API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: [
+                        { role: 'system', content: 'You return ONLY valid JSON. No markdown, no code blocks, no explanation text. Just a single JSON object.' },
+                        { role: 'user', content: prompt },
+                    ],
+                    temperature: 1.0,
+                    top_p: 0.95,
+                    max_tokens: 300,
+                }),
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!res.ok) {
+                console.warn(`Groq API [${model}] HTTP ${res.status}`);
+                continue;
+            }
+
+            const data = await res.json();
+            const raw = data.choices?.[0]?.message?.content?.trim();
+            if (!raw) continue;
+
+            // Parse JSON robustly
+            const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            try {
+                return { ...JSON.parse(cleaned), source: 'groq_ai' };
+            } catch {
+                // Regex fallback for malformed JSON
+                const t = cleaned.match(/"text"\s*:\s*"([^"]+)"/);
+                const a = cleaned.match(/"author"\s*:\s*"([^"]+)"/);
+                if (t) {
+                    return { text: t[1], author: a?.[1] || 'Unknown', category, type: isQuote ? 'quote' : 'fact', source: 'groq_ai' };
+                }
+            }
+        } catch (err) {
+            console.warn(`Groq quote [${model}] error:`, err.message);
         }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (!content) return null;
-
-        const parsed = JSON.parse(content);
-        if (parsed.text && parsed.author) {
-            return {
-                text: parsed.text,
-                author: parsed.author,
-                category: parsed.category || 'AI',
-                type: parsed.type || 'quote',
-                source: 'groq_ai',
-            };
-        }
-        return null;
-    } catch (e) {
-        console.warn('⚠️ Groq AI fetch failed:', e.message);
-        return null;
     }
+    return null;
 }
 
-// ─── GNews Fetcher with Daily Append Logic ───
-let newsDayCache = { date: null, articles: [], fetchCount: 0, bookmarkedIds: new Set() };
+// GET /api/quotes/random — Generate a fresh quote every call
+app.get('/api/quotes/random', async (_req, res) => {
+    // Try up to 3 times to get a unique quote
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const quote = await generateQuoteFromGroq();
+            if (quote && quote.text) {
+                // Check against history for uniqueness
+                const isDuplicate = quoteHistory.some(h =>
+                    h.toLowerCase().trim() === quote.text.toLowerCase().trim()
+                );
+                if (!isDuplicate) {
+                    // Add to history (rolling)
+                    quoteHistory.push(quote.text);
+                    if (quoteHistory.length > MAX_QUOTE_HISTORY) quoteHistory.shift();
+                    return res.json(quote);
+                }
+                // If duplicate and last attempt, still return it
+                if (attempt === 2) return res.json(quote);
+                continue; // Try again for unique
+            }
+        } catch (err) {
+            console.warn('Quote generation error:', err.message);
+        }
+    }
 
-function getToday() {
-    return new Date().toISOString().split('T')[0];
+    // Fallback pool — shuffle and pick one not in history
+    const fallbacks = [
+        { text: 'The measure of intelligence is the ability to change.', author: 'Albert Einstein' },
+        { text: 'Data is the new oil, but like oil it must be refined to be useful.', author: 'Clive Humby' },
+        { text: 'Machine intelligence is the last invention humanity will need to make.', author: 'Nick Bostrom' },
+        { text: 'The goal is to turn data into information, and information into insight.', author: 'Carly Fiorina' },
+        { text: 'In God we trust. All others must bring data.', author: 'W. Edwards Deming' },
+        { text: 'Artificial intelligence would be the ultimate version of Google.', author: 'Larry Page' },
+        { text: 'The question of whether a computer can think is no more interesting than whether a submarine can swim.', author: 'Edsger Dijkstra' },
+        { text: 'Deep learning is going to be able to do things we have not imagined yet.', author: 'Geoffrey Hinton' },
+        { text: 'Technology is best when it brings people together.', author: 'Matt Mullenweg' },
+        { text: 'The best way to predict the future is to create it.', author: 'Peter Drucker' },
+        { text: 'Innovation distinguishes between a leader and a follower.', author: 'Steve Jobs' },
+        { text: 'Science is organized knowledge. Wisdom is organized life.', author: 'Immanuel Kant' },
+    ];
+    // Pick one not recently used
+    const unused = fallbacks.filter(f => !quoteHistory.includes(f.text));
+    const pool = unused.length > 0 ? unused : fallbacks;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    quoteHistory.push(pick.text);
+    if (quoteHistory.length > MAX_QUOTE_HISTORY) quoteHistory.shift();
+    res.json({ ...pick, category: 'AI', type: 'quote', source: 'fallback' });
+});
+
+
+// ═══════════════════════════════════════════════════════
+// 2. NEWS API — GNews Technology Feed
+//    Backend proxies GNews. No caching here.
+//    Frontend handles timers, caching, daily reset.
+// ═══════════════════════════════════════════════════════
+
+function categorizeArticle(text) {
+    const l = (text || '').toLowerCase();
+    if (l.includes('deep learning') || l.includes('neural net') || l.includes('transformer') || l.includes('diffusion')) return 'DL';
+    if (l.includes('data science') || l.includes('analytics') || l.includes('dataset')) return 'DS';
+    if (l.includes('machine learning') || l.includes('reinforcement') || l.includes('supervised')) return 'ML';
+    return 'AI';
 }
 
-async function fetchGNews(searchQuery) {
-    if (!GNEWS_API_KEY) return [];
+// ─── News cache for deduplication ───
+let newsCache = { articles: [], query: '', timestamp: 0 };
+const NEWS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min cache
+
+// GET /api/news — Fetch technology news from GNews
+app.get('/api/news', async (req, res) => {
+    if (!GNEWS_API_KEY) {
+        return res.json({ articles: [], error: 'GNews API key not configured' });
+    }
+
+    // Use search queries for variety based on optional keyword param
+    const keywords = ['artificial intelligence', 'machine learning', 'deep learning', 'data science', 'neural network', 'generative AI', 'AI research', 'large language models'];
+    const queryParam = req.query.q;
+    const query = queryParam || keywords[Math.floor(Math.random() * keywords.length)];
+
+    // Check cache: if same query within TTL, vary the result order
+    if (!queryParam && newsCache.articles.length > 0 && (Date.now() - newsCache.timestamp) < NEWS_CACHE_TTL_MS) {
+        // Shuffle cached articles for variety
+        const shuffled = [...newsCache.articles].sort(() => Math.random() - 0.5);
+        return res.json({ articles: shuffled, query: newsCache.query, timestamp: Date.now(), cached: true });
+    }
 
     try {
-        const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(searchQuery)}&lang=en&max=10&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
-        const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        if (!resp.ok) return [];
+        const fetch = (await import('node-fetch')).default;
 
-        const data = await resp.json();
-        return (data.articles || []).map((a, i) => ({
-            id: `gnews_${Date.now()}_${i}`,
-            title: a.title,
+        const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=10&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
+        const gnewsRes = await fetch(gnewsUrl, { signal: AbortSignal.timeout(10000) });
+
+        if (!gnewsRes.ok) {
+            console.warn(`GNews HTTP ${gnewsRes.status}`);
+            return res.json({ articles: newsCache.articles.length > 0 ? newsCache.articles : [], error: `GNews returned ${gnewsRes.status}` });
+        }
+
+        const data = await gnewsRes.json();
+        const today = new Date().toISOString().slice(0, 10);
+
+        const articles = (data.articles || []).map((a, i) => ({
+            id: `gnews-${today}-${Date.now()}-${i}`,
+            title: a.title || 'Untitled',
             description: a.description || '',
             content: a.content || a.description || '',
             image: a.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop',
             source: a.source?.name || 'Unknown',
-            url: a.url,
-            publishedAt: a.publishedAt,
-            date: a.publishedAt?.slice(0, 10) || getToday(),
-            category: categorizeArticle(a.title + ' ' + (a.description || '')),
-            fetchedAt: new Date().toISOString(),
+            url: a.url || '#',
+            date: a.publishedAt?.slice(0, 10) || today,
+            category: categorizeArticle((a.title || '') + ' ' + (a.description || '')),
         }));
+
+        // Merge with previous cached to avoid losing articles
+        const existingTitles = new Set(newsCache.articles.map(a => a.title));
+        const newUnique = articles.filter(a => !existingTitles.has(a.title));
+        const merged = [...newsCache.articles, ...newUnique].slice(-50); // Keep last 50 articles
+
+        // Update cache
+        newsCache = { articles: merged, query, timestamp: Date.now() };
+
+        res.json({ articles, query, timestamp: Date.now() });
+    } catch (err) {
+        console.warn('GNews fetch error:', err.message);
+        // On error, return cached if available
+        if (newsCache.articles.length > 0) {
+            return res.json({ articles: newsCache.articles, query: newsCache.query, timestamp: Date.now(), cached: true });
+        }
+        res.json({ articles: [], error: err.message });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// 3. AUTH ENDPOINTS — Supabase Auth
+// ═══════════════════════════════════════════════════════
+
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+        return res.status(400).json({ success: false, error: 'Username, email, and password are required' });
+    }
+    if (password.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const { data, error } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { username },
+        });
+        if (error) return res.status(400).json({ success: false, error: error.message });
+
+        res.json({
+            success: true,
+            user: { id: data.user.id, email: data.user.email },
+            message: 'Account created! You can now sign in.',
+        });
     } catch (e) {
-        console.warn('⚠️ GNews API error:', e.message);
-        return [];
+        res.status(500).json({ success: false, error: e.message });
     }
-}
+});
 
-function categorizeArticle(text) {
-    const lower = text.toLowerCase();
-    if (lower.includes('deep learning') || lower.includes('neural net') || lower.includes('transformer') || lower.includes('diffusion') || lower.includes('cnn') || lower.includes('rnn')) return 'DL';
-    if (lower.includes('data science') || lower.includes('analytics') || lower.includes('dataset') || lower.includes('visualization') || lower.includes('pandas')) return 'DS';
-    if (lower.includes('machine learning') || lower.includes('reinforcement') || lower.includes('supervised') || lower.includes('federated') || lower.includes('gradient')) return 'ML';
-    return 'AI';
-}
-
-// Curated fallback
-const CURATED_NEWS = [
-    { id: 'c1', title: 'GPT-5 Achieves PhD-Level Reasoning in New Benchmarks', description: 'OpenAI announces GPT-5 surpasses human PhD students on complex reasoning tasks.', content: 'The latest generation of large language models continues to push boundaries. GPT-5 reportedly uses a Mixture of Experts architecture with 16 specialized sub-networks, achieving near-perfect scores on mathematical reasoning and scientific knowledge tests.', url: 'https://openai.com/blog', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop', source: 'OpenAI Blog', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c2', title: 'Google DeepMind Releases Gemini 2.5 Pro with Enhanced Multimodal Understanding', description: 'Gemini 2.5 Pro demonstrates state-of-the-art performance across text, image, audio, and video.', content: 'Google DeepMind has unveiled Gemini 2.5 Pro featuring real-time reasoning and novel multimodal fusion techniques that seamlessly integrate text, image, audio, and video understanding.', url: 'https://deepmind.google', image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&h=340&fit=crop', source: 'Google DeepMind', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c3', title: 'Meta Open-Sources LLaMA 4 with 405B Parameters', description: 'Meta releases its most powerful open-source LLM with novel Gated Sparse Attention.', content: 'LLaMA 4 uses a novel Gated Sparse Attention mechanism allowing it to process 128K tokens of context while using significantly less memory. Benchmarks show it matching GPT-4 Turbo.', url: 'https://ai.meta.com', image: 'https://images.unsplash.com/photo-1655720828018-edd2daec9349?w=600&h=340&fit=crop', source: 'Meta AI', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c4', title: 'Breakthrough in Autonomous Vehicle Safety Using Reinforcement Learning', description: 'New RL techniques reduce collision rates by 94% in simulation.', content: 'Researchers have developed novel reinforcement learning techniques that dramatically improve autonomous vehicle safety, reducing collision rates by 94% in complex urban driving simulations.', url: 'https://arxiv.org', image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0aca?w=600&h=340&fit=crop', source: 'arXiv', publishedAt: new Date().toISOString(), date: getToday(), category: 'ML' },
-    { id: 'c5', title: 'PyTorch 3.0 Released with Native Distributed Training', description: 'Built-in distributed training across thousands of GPUs with minimal code.', content: 'PyTorch 3.0 includes native support for distributed training, allowing researchers to scale their models across thousands of GPUs with just a few lines of code change.', url: 'https://pytorch.org', image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=600&h=340&fit=crop', source: 'PyTorch', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c6', title: 'Stanford Develops Energy-Efficient Transformer Architecture', description: 'Sparse attention reduces compute by 80% while maintaining accuracy.', content: 'Stanford AI Lab has developed a new sparse attention mechanism that reduces transformer compute requirements by 80% while maintaining comparable accuracy on standard benchmarks.', url: 'https://stanford.edu', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=340&fit=crop', source: 'Stanford AI Lab', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c7', title: 'AI Drug Discovery Identifies New Antibiotic Candidates', description: 'ML models screen millions of compounds to find promising antibiotic candidates.', content: 'Machine learning models have screened millions of chemical compounds and identified promising new antibiotic candidates that traditional methods completely missed.', url: 'https://nature.com', image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=340&fit=crop', source: 'Nature', publishedAt: new Date().toISOString(), date: getToday(), category: 'ML' },
-    { id: 'c8', title: 'NVIDIA Announces Next-Gen AI Chips for Foundation Models', description: 'Blackwell Ultra delivers 30x improvement in AI training throughput.', content: 'NVIDIA has announced its next-generation Blackwell Ultra architecture, delivering a massive 30x improvement in AI training throughput for foundation models.', url: 'https://nvidia.com', image: 'https://images.unsplash.com/photo-1591405351990-4726e331f141?w=600&h=340&fit=crop', source: 'NVIDIA', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c9', title: 'Computer Vision Achieves Human-Level Medical Diagnosis', description: 'Vision transformer matches radiologist accuracy across 14 imaging tasks.', content: 'A new vision transformer model has achieved human-level accuracy in medical image diagnosis across 14 different imaging modalities, from X-rays to MRI scans.', url: 'https://thelancet.com', image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=600&h=340&fit=crop', source: 'The Lancet', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c10', title: 'Hugging Face Surpasses 1 Million Hosted Models', description: 'The AI community platform solidifies its position as the GitHub of ML.', content: 'Hugging Face has surpassed one million hosted models, cementing its role as the central hub for the machine learning community.', url: 'https://huggingface.co', image: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=600&h=340&fit=crop', source: 'Hugging Face', publishedAt: new Date().toISOString(), date: getToday(), category: 'ML' },
-    { id: 'c11', title: 'Federated Learning Enables Privacy-Preserving AI at Scale', description: 'New techniques reduce communication costs by 100x.', content: 'Advanced gradient compression techniques have made federated learning practical for billions of devices, reducing communication costs by up to 100x.', url: 'https://research.google', image: 'https://images.unsplash.com/photo-1563986768609-322da13575f2?w=600&h=340&fit=crop', source: 'Google Research', publishedAt: new Date().toISOString(), date: getToday(), category: 'ML' },
-    { id: 'c12', title: 'Real-Time 4K Video Generation with Diffusion Models', description: 'Temporal consistency maintained across thousands of frames.', content: 'A breakthrough in video generation allows real-time 4K video creation with temporal consistency, using a novel temporal attention diffusion architecture.', url: 'https://openai.com', image: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&h=340&fit=crop', source: 'OpenAI', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c13', title: 'MIT Develops Explainable AI for Critical Decision Making', description: 'Human-readable explanations for healthcare, finance, and justice.', content: 'MIT CSAIL has developed a new XAI framework that provides clear, human-readable explanations for AI decisions in healthcare, finance, and criminal justice applications.', url: 'https://mit.edu', image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=340&fit=crop', source: 'MIT CSAIL', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c14', title: 'Synthetic Data Now Powers 60% of Enterprise ML Models', description: 'Generative techniques eliminate privacy concerns in training data.', content: 'A comprehensive industry study reveals that 60% of enterprise ML models now incorporate synthetic data, driven by privacy regulations and the high cost of real-world data collection.', url: 'https://datascienceweekly.org', image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=340&fit=crop', source: 'DS Weekly', publishedAt: new Date().toISOString(), date: getToday(), category: 'DS' },
-    { id: 'c15', title: 'Graph Neural Networks Revolutionize Protein Interaction Prediction', description: 'Building on AlphaFold with unprecedented accuracy.', content: 'New GNN architectures are building on AlphaFold\'s legacy, predicting complex protein-protein interactions with unprecedented accuracy.', url: 'https://science.org', image: 'https://images.unsplash.com/photo-1628595351029-c2bf17511435?w=600&h=340&fit=crop', source: 'Science', publishedAt: new Date().toISOString(), date: getToday(), category: 'DL' },
-    { id: 'c16', title: 'AutoML Frameworks Handle End-to-End ML Pipelines', description: 'Automated systems match expert-designed pipelines across 40 benchmarks.', content: 'The latest AutoML frameworks can automatically handle data preprocessing, feature engineering, model selection, and hyperparameter tuning, matching expert performance.', url: 'https://kaggle.com', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=340&fit=crop', source: 'Kaggle', publishedAt: new Date().toISOString(), date: getToday(), category: 'DS' },
-    { id: 'c17', title: 'Quantum Machine Learning Shows Practical Advantage', description: 'IBM quantum processor achieves 10x speedup on specific ML tasks.', content: 'IBM has demonstrated practical quantum advantage for machine learning, achieving a 10x speedup on kernel methods and optimization problems compared to classical hardware.', url: 'https://research.ibm.com', image: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&h=340&fit=crop', source: 'IBM Research', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c18', title: 'Multi-Agent AI Swarms Improve Software Engineering by 40%', description: 'Specialized agents collaborate on complex tasks.', content: 'OpenAI\'s multi-agent framework orchestrates specialized AI agents to collaborate on complex software engineering tasks, showing 40% improvement over single-agent approaches.', url: 'https://openai.com', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=340&fit=crop', source: 'OpenAI', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-    { id: 'c19', title: 'Causal Inference Meets Deep Learning in Novel Hybrid Frameworks', description: 'Models that understand cause-and-effect relationships.', content: 'A new wave of research merges causal inference with deep learning, enabling neural networks to understand causal relationships for more robust and generalizable models.', url: 'https://arxiv.org', image: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=600&h=340&fit=crop', source: 'NeurIPS', publishedAt: new Date().toISOString(), date: getToday(), category: 'ML' },
-    { id: 'c20', title: 'EU AI Act Takes Effect: What ML Engineers Need to Know', description: 'Risk-based requirements for AI systems in Europe.', content: 'The EU AI Act establishes comprehensive risk-based requirements for AI systems, creating a framework that categorizes AI applications by risk level with corresponding obligations.', url: 'https://digital-strategy.ec.europa.eu', image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&h=340&fit=crop', source: 'European Commission', publishedAt: new Date().toISOString(), date: getToday(), category: 'AI' },
-];
-
-/**
- * Fetch news: up to 10 fetches/day, each appending ~10 articles.
- * At end of day, clear non-bookmarked articles.
- */
-async function getNewsArticles(bookmarkedIds = []) {
-    const today = getToday();
-
-    // Reset for new day
-    if (newsDayCache.date !== today) {
-        // Retain only bookmarked from previous day
-        const bookmarkedArticles = newsDayCache.articles.filter(a => bookmarkedIds.includes(a.id));
-        newsDayCache = { date: today, articles: bookmarkedArticles, fetchCount: 0, bookmarkedIds: new Set(bookmarkedIds) };
-
-        // Also load from DB cache if available
-        if (db) {
-            const cached = db.prepare('SELECT data, cache_date, fetch_count FROM news_cache WHERE id = 1').get();
-            if (cached && cached.cache_date === today) {
-                newsDayCache.articles = JSON.parse(cached.data);
-                newsDayCache.fetchCount = cached.fetch_count || 0;
-            }
-        }
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
 
-    // Update bookmarked IDs
-    bookmarkedIds.forEach(id => newsDayCache.bookmarkedIds.add(id));
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) return res.status(401).json({ success: false, error: error.message });
 
-    // Can we fetch more? (max 10 fetches per day)
-    if (newsDayCache.fetchCount < 10 && GNEWS_API_KEY) {
-        const searchQueries = [
-            'artificial intelligence breakthrough',
-            'machine learning research',
-            'deep learning neural network',
-            'data science analytics',
-            'AI technology innovation',
-            'natural language processing',
-            'computer vision AI',
-            'reinforcement learning robotics',
-            'generative AI model',
-            'AI ethics regulation',
-        ];
-        const query = searchQueries[newsDayCache.fetchCount % searchQueries.length];
-        const newArticles = await fetchGNews(query);
+        // Fetch profile if exists
+        let profile = null;
+        try {
+            const { data: prof } = await supabase
+                .from('profiles')
+                .select('username, bio, profile_image, theme, color_theme, date_joined')
+                .eq('id', data.user.id)
+                .single();
+            profile = prof;
+        } catch { /* no profile row yet */ }
 
-        if (newArticles.length > 0) {
-            // Deduplicate by title
-            const existingTitles = new Set(newsDayCache.articles.map(a => a.title.toLowerCase().trim()));
-            const uniqueNew = newArticles.filter(a => !existingTitles.has(a.title.toLowerCase().trim()));
-            newsDayCache.articles = [...newsDayCache.articles, ...uniqueNew];
-            newsDayCache.fetchCount++;
-
-            // Save to DB
-            if (db) {
-                db.prepare('INSERT OR REPLACE INTO news_cache (id, data, cache_date, fetch_count) VALUES (1, ?, ?, ?)').run(
-                    JSON.stringify(newsDayCache.articles), today, newsDayCache.fetchCount
-                );
-            }
-        }
+        res.json({
+            success: true,
+            user: {
+                id: data.user.id,
+                email: data.user.email,
+                username: profile?.username || data.user.user_metadata?.username || email.split('@')[0],
+                bio: profile?.bio || '',
+                profileImage: profile?.profile_image || '',
+                theme: profile?.theme || 'dark',
+                colorTheme: profile?.color_theme || '#6366f1',
+                createdAt: profile?.date_joined || data.user.created_at,
+            },
+            session: {
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+            },
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
+});
 
-    // If still not enough, add curated
-    if (newsDayCache.articles.length < 15) {
-        const existingTitles = new Set(newsDayCache.articles.map(a => a.title.toLowerCase().trim()));
-        const shuffled = [...CURATED_NEWS].sort(() => Math.random() - 0.5);
-        const needed = shuffled.filter(a => !existingTitles.has(a.title.toLowerCase().trim()));
-        newsDayCache.articles = [...newsDayCache.articles, ...needed.slice(0, 20 - newsDayCache.articles.length)];
+// POST /api/auth/verify-email
+app.post('/api/auth/verify-email', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    try {
+        const { data: { users } } = await supabase.auth.admin.listUsers();
+        const user = users.find(u => u.email === email);
+        if (!user) return res.status(400).json({ success: false, error: 'User not found' });
+
+        const { error } = await supabase.auth.admin.updateUserById(user.id, { email_confirm: true });
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        res.json({ success: true, message: 'Email verified! You can now sign in.' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
+});
 
-    return {
-        articles: newsDayCache.articles,
-        fetchCount: newsDayCache.fetchCount,
-        maxFetches: 10,
-        date: today,
-        total: newsDayCache.articles.length,
-    };
-}
+// POST /api/auth/reset-password-direct
+app.post('/api/auth/reset-password-direct', async (req, res) => {
+    const { email, newPassword } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ success: false, error: 'Password must be 6+ characters' });
+
+    try {
+        const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers();
+        if (listErr) return res.status(500).json({ success: false, error: 'System error' });
+
+        const user = users.find(u => u.email === email);
+        if (!user) return res.status(400).json({ success: false, error: 'User not found' });
+
+        const { error } = await supabase.auth.admin.updateUserById(user.id, { password: newPassword, email_confirm: true });
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        res.json({ success: true, message: 'Password reset successfully!' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/auth/update-password (authenticated)
+app.post('/api/auth/update-password', async (req, res) => {
+    const { password } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    if (!password || password.length < 6) return res.status(400).json({ success: false, error: 'Password must be 6+ characters' });
+
+    try {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ success: false, error: 'Invalid token' });
+
+        const { error } = await supabase.auth.admin.updateUserById(user.id, { password });
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        res.json({ success: true, message: 'Password updated' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE /api/auth/delete-account (authenticated)
+app.delete('/api/auth/delete-account', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    try {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ success: false, error: 'Invalid token' });
+
+        const { error } = await supabase.auth.admin.deleteUser(user.id);
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        res.json({ success: true, message: 'Account deleted' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 
 // ═══════════════════════════════════════════════════════
-// API ENDPOINTS
+// 4. DATA CRUD — JSONB Storage in Supabase
+//    Generic GET/POST for all user data types
 // ═══════════════════════════════════════════════════════
 
-// Build endpoint registry for /docs
-const ENDPOINTS = [
-    { method: 'GET', path: '/', description: 'HTML API documentation page' },
-    { method: 'GET', path: '/docs', description: 'JSON API documentation with all endpoints' },
-    { method: 'GET', path: '/api/health', description: 'Server health check with uptime and memory' },
-    { method: 'GET', path: '/api/quotes/random', description: 'Dynamic AI/ML quote via Groq AI (called on dashboard refresh)', request: null, response: '{ text, author, category, type, source }' },
-    { method: 'GET', path: '/api/quotes', description: 'All fallback quotes', request: null, response: '{ total, quotes: [...] }' },
-    { method: 'GET', path: '/api/news', description: 'Daily AI/ML news (up to 10 fetches/day, ~100 articles target)', request: 'query: ?bookmarked=id1,id2', response: '{ articles, fetchCount, maxFetches, date, total }' },
-    { method: 'GET', path: '/api/news/refresh', description: 'Force a new GNews fetch (counts toward 10/day limit)', request: 'query: ?bookmarked=id1,id2', response: '{ articles, fetchCount, ... }' },
-    { method: 'POST', path: '/api/auth/register', description: 'Register new user', request: '{ username, password }', response: '{ id, username, message }' },
-    { method: 'POST', path: '/api/auth/login', description: 'Login user', request: '{ username, password }', response: '{ id, username, message }' },
-    { method: 'GET', path: '/api/tasks/:userId', description: 'Get all daily tasks for user', request: null, response: '{ tasks: [...] }' },
-    { method: 'POST', path: '/api/tasks/:userId', description: 'Save daily tasks (bulk)', request: '{ tasks: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/courses/:userId', description: 'Get all courses', request: null, response: '{ courses: [...] }' },
-    { method: 'POST', path: '/api/courses/:userId', description: 'Save courses (bulk)', request: '{ courses: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/papers/:userId', description: 'Get research papers', request: null, response: '{ papers: [...] }' },
-    { method: 'POST', path: '/api/papers/:userId', description: 'Save research papers', request: '{ papers: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/sessions/:userId', description: 'Get study sessions', request: null, response: '{ sessions: [...] }' },
-    { method: 'POST', path: '/api/sessions/:userId', description: 'Save study sessions', request: '{ sessions: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/bookmarks/:userId', description: 'Get bookmarks', request: null, response: '{ bookmarks: [...] }' },
-    { method: 'POST', path: '/api/bookmarks/:userId', description: 'Save bookmarks', request: '{ bookmarks: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/activity/:userId', description: 'Get activity log', request: null, response: '{ log: [...] }' },
-    { method: 'POST', path: '/api/activity/:userId', description: 'Save activity log', request: '{ log: [...] }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/streak/:userId', description: 'Get streak data', request: null, response: '{ streak: {...} }' },
-    { method: 'POST', path: '/api/streak/:userId', description: 'Save streak', request: '{ streak: {...} }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/profile/:userId', description: 'Get user profile', request: null, response: '{ profile: {...} }' },
-    { method: 'POST', path: '/api/profile/:userId', description: 'Save user profile', request: '{ profile: {...} }', response: '{ success: true }' },
-    { method: 'GET', path: '/api/newsread/:userId', description: 'Get news read status', request: null, response: '{ newsRead: [...] }' },
-    { method: 'POST', path: '/api/newsread/:userId', description: 'Save news read status', request: '{ newsRead: [...] }', response: '{ success: true }' },
-];
+const DATA_ROUTES = {
+    tasks: 'user_data_tasks',
+    courses: 'user_data_courses',
+    papers: 'user_data_papers',
+    sessions: 'user_data_sessions',
+    bookmarks: 'user_data_bookmarks',
+    activity: 'user_data_activity',
+    streak: 'user_data_streak',
+    profile: 'user_data_profile',
+    newsread: 'user_data_newsread',
+    resources: 'user_data_resources',
+};
 
-// ─── Root: HTML API Documentation (Swagger-like) ───
-app.get('/', (req, res) => {
-    const methodColors = { GET: '#34d399', POST: '#a78bfa', PUT: '#fbbf24', DELETE: '#f87171' };
-    const endpointRows = ENDPOINTS.map(ep => {
-        const color = methodColors[ep.method] || '#8b8fa3';
-        const bgColor = ep.method === 'GET' ? '#0d3320' : ep.method === 'POST' ? '#1e1b3a' : ep.method === 'PUT' ? '#332b00' : '#3b1019';
-        const reqBody = ep.request ? `<div class="ep-schema"><span class="ep-schema-label">Request:</span><code>${ep.request}</code></div>` : '';
-        const resBody = ep.response ? `<div class="ep-schema"><span class="ep-schema-label">Response:</span><code>${ep.response}</code></div>` : '';
-        return `
-        <div class="endpoint" onclick="this.classList.toggle('expanded')">
-            <div class="ep-main">
-                <span class="method" style="background:${bgColor};color:${color}">${ep.method}</span>
-                <span class="path">${ep.path}</span>
-                <span class="desc">${ep.description}</span>
-            </div>
-            ${reqBody || resBody ? `<div class="ep-details">${reqBody}${resBody}</div>` : ''}
-        </div>`;
-    }).join('');
+// Default empty values by type
+const DEFAULTS = {
+    streak: {},
+    profile: {},
+};
 
-    res.setHeader('Content-Type', 'text/html');
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TenX API Documentation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0a14; color: #e0e0e8; min-height: 100vh; padding: 40px 20px; }
-        .container { max-width: 960px; margin: 0 auto; }
-        .header { margin-bottom: 40px; }
-        h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, #6366f1, #a78bfa, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
-        .subtitle { color: #8b8fa3; font-size: 1rem; margin-bottom: 24px; }
-        .info-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-        .info-pill { padding: 6px 14px; background: #12131f; border: 1px solid #1e2030; border-radius: 20px; font-size: 0.78rem; color: #a0a4b8; }
-        .info-pill b { color: #6366f1; margin-right: 4px; }
-        .status-live { color: #34d399; }
-        .section { margin-bottom: 32px; }
-        .section h2 { font-size: 1.15rem; margin-bottom: 14px; color: #c4c8d8; border-bottom: 1px solid #1a1d2e; padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-        .endpoint { background: #12131f; border: 1px solid #1e2030; border-radius: 10px; margin-bottom: 6px; transition: all 0.2s; cursor: pointer; overflow: hidden; }
-        .endpoint:hover { border-color: #6366f144; background: #141520; }
-        .endpoint.expanded .ep-details { display: block; }
-        .ep-main { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
-        .ep-details { display: none; padding: 0 16px 12px 82px; }
-        .ep-schema { font-size: 0.75rem; margin-top: 4px; }
-        .ep-schema-label { color: #8b8fa3; font-weight: 600; margin-right: 6px; }
-        .ep-schema code { font-family: 'Fira Code', monospace; font-size: 0.73rem; color: #a78bfa; background: #0a0a14; padding: 2px 8px; border-radius: 4px; }
-        .method { font-weight: 700; font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; min-width: 52px; text-align: center; text-transform: uppercase; font-family: 'Fira Code', monospace; flex-shrink: 0; }
-        .path { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: #e0e0e8; min-width: 220px; flex-shrink: 0; }
-        .desc { font-size: 0.78rem; color: #8b8fa3; flex: 1; }
-        .try-it { padding: 20px; background: #12131f; border: 1px solid #1e2030; border-radius: 12px; margin-top: 32px; }
-        .try-it h3 { font-size: 1rem; margin-bottom: 12px; color: #c4c8d8; }
-        .try-it code { display: block; background: #0a0a14; padding: 10px 16px; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 0.82rem; color: #a78bfa; margin-bottom: 6px; white-space: pre-wrap; }
-        .try-it p { font-size: 0.78rem; color: #8b8fa3; margin-bottom: 8px; }
-        .badge-live { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 600; background: #0d3320; color: #34d399; }
-        .badge-cached { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 600; background: #332b00; color: #fbbf24; }
-        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
-        .feature-card { background: #12131f; border: 1px solid #1e2030; border-radius: 10px; padding: 16px; }
-        .feature-card h4 { font-size: 0.85rem; color: #c4c8d8; margin-bottom: 6px; }
-        .feature-card p { font-size: 0.73rem; color: #8b8fa3; line-height: 1.5; }
-        @media (max-width: 640px) { .ep-main { flex-direction: column; align-items: flex-start; gap: 4px; } .path { min-width: auto; } .ep-details { padding-left: 16px; } }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 TenX API</h1>
-            <p class="subtitle">Backend API for the AI/ML Learning Tracker Dashboard</p>
-            <div class="info-bar">
-                <span class="info-pill"><b>Status:</b> <span class="status-live">✅ Online</span></span>
-                <span class="info-pill"><b>Version:</b> 1.0.0</span>
-                <span class="info-pill"><b>Database:</b> ${supabase ? 'Supabase PostgreSQL' : 'SQLite'}</span>
-                <span class="info-pill"><b>Groq AI:</b> ${GROQ_API_KEY ? '<span class="status-live">Connected</span>' : 'Not configured'}</span>
-                <span class="info-pill"><b>GNews:</b> ${GNEWS_API_KEY ? '<span class="status-live">Connected</span>' : 'Not configured'}</span>
-                <span class="info-pill"><b>Endpoints:</b> ${ENDPOINTS.length}</span>
-            </div>
-        </div>
+// GET /api/data/:type/:userId
+app.get('/api/data/:type/:userId', async (req, res) => {
+    const { type, userId } = req.params;
+    const table = DATA_ROUTES[type];
+    if (!table) return res.status(400).json({ error: `Unknown data type: ${type}` });
 
-        <div class="feature-grid">
-            <div class="feature-card"><h4>🤖 Groq AI Quotes</h4><p>Dynamic AI/ML quotes & facts generated via Groq AI on each dashboard refresh</p></div>
-            <div class="feature-card"><h4>📰 GNews Integration</h4><p>Up to 10 fetches/day, ~100 articles target. Auto-cleanup at day end</p></div>
-            <div class="feature-card"><h4>🗄️ Supabase DB</h4><p>PostgreSQL with Row Level Security, auto-profile creation, full CRUD</p></div>
-            <div class="feature-card"><h4>📋 Swagger Docs</h4><p>Interactive API documentation with request/response schemas</p></div>
-        </div>
+    try {
+        const { data, error } = await supabase
+            .from(table)
+            .select('data')
+            .eq('user_id', userId)
+            .single();
 
-        <div class="section" style="margin-top: 32px;">
-            <h2>📊 API Endpoints <span class="badge-live">${ENDPOINTS.length} total</span></h2>
-            ${endpointRows}
-        </div>
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no row found
+            return res.status(500).json({ error: error.message });
+        }
 
-        <div class="try-it">
-            <h3>⚡ Quick Test</h3>
-            <p>Click any endpoint above to see request/response schemas. Test with curl:</p>
-            <code>curl http://localhost:${PORT}/api/health</code>
-            <code>curl http://localhost:${PORT}/api/quotes/random</code>
-            <code>curl http://localhost:${PORT}/api/news</code>
-            <code>curl http://localhost:${PORT}/docs</code>
-        </div>
-    </div>
-</body>
-</html>`);
+        const defaultVal = DEFAULTS[type] !== undefined ? DEFAULTS[type] : [];
+        res.json({ data: data?.data ?? defaultVal });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-// ─── JSON API Documentation (Swagger-like) ───
-app.get('/docs', (req, res) => {
-    res.json({
-        openapi: '3.0.0',
-        info: {
-            title: 'TenX Backend API',
-            version: '1.0.0',
-            description: 'Backend API for AI/ML Learning Tracker Dashboard with Groq AI quotes, GNews integration, and Supabase PostgreSQL.',
-        },
-        servers: [
-            { url: `http://localhost:${PORT}`, description: 'Local development' },
-        ],
-        database: supabase ? 'Supabase PostgreSQL' : 'SQLite',
-        integrations: {
-            groqAI: !!GROQ_API_KEY,
-            gnews: !!GNEWS_API_KEY,
-            supabase: !!supabase,
-        },
-        paths: Object.fromEntries(
-            ENDPOINTS.map(ep => [
-                `${ep.method} ${ep.path}`,
-                {
-                    summary: ep.description,
-                    method: ep.method,
-                    path: ep.path,
-                    request: ep.request || null,
-                    response: ep.response || null,
-                },
-            ])
-        ),
-        schemas: {
-            Quote: { type: 'object', properties: { text: 'string', author: 'string', category: 'AI|ML|DL|DS', type: 'quote|fact', source: 'groq_ai|fallback' } },
-            NewsArticle: { type: 'object', properties: { id: 'string', title: 'string', description: 'string', content: 'string', image: 'string', source: 'string', url: 'string', date: 'string', category: 'AI|ML|DL|DS' } },
-            DailyTask: { type: 'object', properties: { id: 'string', name: 'string', date: 'string', completed: 'boolean', priority: 'low|medium|high', startTime: 'string', endTime: 'string' } },
-            Course: { type: 'object', properties: { id: 'string', name: 'string', description: 'string', priority: 'low|medium|high', topics: 'Topic[]' } },
-            Topic: { type: 'object', properties: { id: 'string', name: 'string', completed: 'boolean', subtopics: 'Subtopic[]', resources: 'Resource[]' } },
-            Resource: { type: 'object', properties: { id: 'string', name: 'string', type: 'pdf|video|doc', url: 'string' } },
-            ResearchPaper: { type: 'object', properties: { id: 'string', title: 'string', author: 'string', completionPercentage: 'number', notes: 'string' } },
-            StudySession: { type: 'object', properties: { id: 'string', date: 'string', totalMinutes: 'number', label: 'string' } },
-            Profile: { type: 'object', properties: { username: 'string', bio: 'string', profileImage: 'string' } },
-        },
-    });
+// POST /api/data/:type/:userId
+app.post('/api/data/:type/:userId', async (req, res) => {
+    const { type, userId } = req.params;
+    const table = DATA_ROUTES[type];
+    if (!table) return res.status(400).json({ error: `Unknown data type: ${type}` });
+
+    try {
+        const { error } = await supabase
+            .from(table)
+            .upsert({
+                user_id: userId,
+                data: req.body.data,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+
+        if (error) return res.status(500).json({ error: error.message });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-// ─── Health Check ───
-app.get('/api/health', (req, res) => {
+
+// ═══════════════════════════════════════════════════════
+// 5. PROFILE — Update profiles table (SQL columns)
+// ═══════════════════════════════════════════════════════
+
+app.post('/api/profile/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { username, bio, profileImage, theme, colorTheme } = req.body;
+
+    try {
+        const updates = {};
+        if (username !== undefined) updates.username = username;
+        if (bio !== undefined) updates.bio = bio;
+        if (profileImage !== undefined) updates.profile_image = profileImage;
+        if (theme !== undefined) updates.theme = theme;
+        if (colorTheme !== undefined) updates.color_theme = colorTheme;
+
+        const { error } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId);
+
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// 6. HEALTH & CONFIG
+// ═══════════════════════════════════════════════════════
+
+app.get('/api/health', (_req, res) => {
     res.json({
         status: 'ok',
-        timestamp: new Date().toISOString(),
-        dbMode: supabase ? 'supabase' : 'sqlite',
-        integrations: {
-            groqAI: !!GROQ_API_KEY,
+        services: {
+            supabase: true,
+            groq: !!GROQ_API_KEY,
             gnews: !!GNEWS_API_KEY,
-            supabase: !!supabase,
         },
-        uptime: Math.round(process.uptime()),
-        memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        timestamp: new Date().toISOString(),
     });
 });
 
-// ─── Quotes API (Groq AI Dynamic) ───
-app.get('/api/quotes/random', async (req, res) => {
-    try {
-        // Try Groq AI first
-        const groqQuote = await fetchGroqQuote();
-        if (groqQuote) {
-            return res.json(groqQuote);
-        }
-    } catch (e) {
-        console.warn('Groq quote failed:', e.message);
-    }
-
-    // Fallback to static quotes
-    const quote = FALLBACK_QUOTES[Math.floor(Math.random() * FALLBACK_QUOTES.length)];
-    res.json({ ...quote, source: 'fallback' });
-});
-
-app.get('/api/quotes', (req, res) => {
-    res.json({ total: FALLBACK_QUOTES.length, quotes: FALLBACK_QUOTES });
-});
-
-// ─── News API (GNews Dynamic, 10 fetches/day) ───
-app.get('/api/news', async (req, res) => {
-    try {
-        const bookmarkedIds = req.query.bookmarked ? req.query.bookmarked.split(',') : [];
-        const result = await getNewsArticles(bookmarkedIds);
-        res.json(result);
-    } catch (e) {
-        console.error('News error:', e);
-        res.json({ articles: CURATED_NEWS.slice(0, 20), fetchCount: 0, maxFetches: 10, date: getToday(), total: 20 });
-    }
-});
-
-// Force a new fetch (counts toward daily limit)
-app.get('/api/news/refresh', async (req, res) => {
-    try {
-        const bookmarkedIds = req.query.bookmarked ? req.query.bookmarked.split(',') : [];
-        // Temporarily reduce fetch count to force a new fetch
-        if (newsDayCache.date === getToday() && newsDayCache.fetchCount < 10) {
-            // Will automatically fetch in getNewsArticles
-        }
-        const result = await getNewsArticles(bookmarkedIds);
-        res.json(result);
-    } catch (e) {
-        console.error('News refresh error:', e);
-        res.status(500).json({ error: 'Failed to refresh news' });
-    }
-});
-
-// ─── Auth API ───
-app.post('/api/auth/register', (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-
-    if (supabase) {
-        return res.json({ message: 'Use Supabase Auth directly from frontend', supabaseUrl: process.env.SUPABASE_URL });
-    }
-
-    try {
-        const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-        if (existing) return res.status(409).json({ error: 'Username already exists' });
-        const result = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, password);
-        res.status(201).json({ id: result.lastInsertRowid, username, message: 'Registration successful' });
-    } catch (e) {
-        res.status(500).json({ error: 'Registration failed', details: e.message });
-    }
-});
-
-app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-
-    if (supabase) {
-        return res.json({ message: 'Use Supabase Auth directly from frontend', supabaseUrl: process.env.SUPABASE_URL });
-    }
-
-    try {
-        const user = db.prepare('SELECT id, username FROM users WHERE username = ? AND password = ?').get(username, password);
-        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-        res.json({ id: user.id, username: user.username, message: 'Login successful' });
-    } catch (e) {
-        res.status(500).json({ error: 'Login failed', details: e.message });
-    }
-});
-
-// ─── Generic CRUD Routes ───
-function makeDataRoutes(routePath, tableName, dataKey) {
-    app.get(`/api/${routePath}/:userId`, (req, res) => {
-        try {
-            if (db) {
-                const row = db.prepare(`SELECT data FROM ${tableName} WHERE user_id = ?`).get(req.params.userId);
-                return res.json({ [dataKey]: row ? JSON.parse(row.data) : (dataKey === 'streak' ? { count: 0, lastDate: null } : dataKey === 'profile' ? {} : []) });
-            }
-            res.json({ [dataKey]: dataKey === 'streak' ? { count: 0, lastDate: null } : dataKey === 'profile' ? {} : [] });
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
+app.get('/api/config', (_req, res) => {
+    res.json({
+        supabaseUrl: SUPABASE_URL,
+        supabaseAnonKey: SUPABASE_ANON_KEY,
+        websiteName: process.env.WEBSITE_NAME || 'TENX Track Learning',
+        logoText: process.env.LOGO_TEXT || 'TENX Track Learning',
     });
+});
 
-    app.post(`/api/${routePath}/:userId`, (req, res) => {
-        try {
-            const data = JSON.stringify(req.body[dataKey] || req.body.data || []);
-            if (db) {
-                db.prepare(`INSERT OR REPLACE INTO ${tableName} (user_id, data, updated_at) VALUES (?, ?, datetime('now'))`).run(req.params.userId, data);
-            }
-            res.json({ success: true, message: `${dataKey} saved` });
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
+
+// ═══════════════════════════════════════════════════════
+// 7. API DOCUMENTATION — Interactive Test UI
+// ═══════════════════════════════════════════════════════
+
+app.get('/', (_req, res) => {
+    res.type('html').send(`<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TENX API</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#0b0d14;color:#e0e2ec;min-height:100vh}
+.h{background:linear-gradient(135deg,#12151f,#1a1e2e);border-bottom:1px solid #2a2f42;padding:32px 40px}
+.h h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.h p{color:#6b7394;margin-top:8px;font-size:.9rem}
+.c{max-width:900px;margin:0 auto;padding:24px}
+.s{background:#1a1e2e;border:1px solid #2a2f42;border-radius:12px;padding:20px;margin-bottom:16px}
+.s h3{font-size:.95rem;margin-bottom:12px;color:#a78bfa}
+.b{padding:6px 16px;border-radius:8px;border:1px solid #6366f1;background:rgba(99,102,241,.1);color:#818cf8;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;margin-right:8px}
+.b:hover{background:#6366f1;color:#fff}
+.r{background:#12151f;border-radius:8px;padding:14px;max-height:400px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;white-space:pre-wrap;line-height:1.6;margin-top:10px;color:#a0a8c4}
+.ok{color:#34d399}.err{color:#f87171}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.7rem;font-weight:600;margin:2px}
+.badge-ok{background:rgba(52,211,153,.12);color:#34d399}
+.badge-err{background:rgba(248,113,113,.12);color:#f87171}
+</style></head><body>
+<div class="h">
+<h1>⚡ TENX Track Learning API v3.0</h1>
+<p>Clean Architecture — Groq AI · GNews · Supabase</p>
+<div style="margin-top:10px">
+<span class="badge badge-ok">✅ Supabase</span>
+<span class="badge ${GROQ_API_KEY ? 'badge-ok' : 'badge-err'}">${GROQ_API_KEY ? '✅' : '❌'} Groq AI</span>
+<span class="badge ${GNEWS_API_KEY ? 'badge-ok' : 'badge-err'}">${GNEWS_API_KEY ? '✅' : '❌'} GNews</span>
+</div></div>
+<div class="c">
+<div class="s"><h3>📝 Test Quotes API</h3>
+<button class="b" onclick="testEndpoint('/api/quotes/random','qr')">Get Quote</button>
+<button class="b" onclick="test3('qr')">Test 3× Uniqueness</button>
+<div id="qr" class="r">Click to test...</div></div>
+
+<div class="s"><h3>📰 Test News API</h3>
+<button class="b" onclick="testEndpoint('/api/news','nr')">Get News</button>
+<div id="nr" class="r">Click to test...</div></div>
+
+<div class="s"><h3>💚 Health</h3>
+<button class="b" onclick="testEndpoint('/api/health','hr')">Check</button>
+<div id="hr" class="r">...</div></div>
+</div>
+<script>
+async function testEndpoint(p,id){
+const el=document.getElementById(id);el.innerHTML='Loading...';
+try{const t=Date.now();const r=await fetch(p);const ms=Date.now()-t;const d=await r.json();
+el.innerHTML='<span class="'+(r.ok?'ok':'err')+'">'+r.status+'</span> ('+ms+'ms)\\n\\n'+JSON.stringify(d,null,2);
+}catch(e){el.innerHTML='<span class="err">FAILED</span> '+e.message}}
+async function test3(id){const el=document.getElementById(id);el.innerHTML='Testing 3 calls...';
+const results=[];for(let i=0;i<3;i++){try{const r=await fetch('/api/quotes/random');results.push(await r.json())}catch(e){results.push({error:e.message})}}
+const texts=results.map(r=>r.text).filter(Boolean);const uniq=new Set(texts);
+el.innerHTML=(uniq.size===texts.length?'<span class="ok">✅ ALL UNIQUE</span>':'<span class="err">⚠️ DUPLICATES</span>')
++'\\n\\n'+results.map((r,i)=>'#'+(i+1)+': "'+r.text+'" — '+r.author).join('\\n\\n')}
+</script></body></html>`);
+});
+
+app.get('/docs', (_req, res) => {
+    res.json({
+        name: 'TENX Track Learning API',
+        version: '3.0.0',
+        endpoints: [
+            { method: 'GET', path: '/api/health' },
+            { method: 'GET', path: '/api/config' },
+            { method: 'GET', path: '/api/quotes/random' },
+            { method: 'GET', path: '/api/news' },
+            { method: 'POST', path: '/api/auth/register' },
+            { method: 'POST', path: '/api/auth/login' },
+            { method: 'POST', path: '/api/auth/verify-email' },
+            { method: 'POST', path: '/api/auth/reset-password-direct' },
+            { method: 'POST', path: '/api/auth/update-password' },
+            { method: 'DELETE', path: '/api/auth/delete-account' },
+            { method: 'GET', path: '/api/data/:type/:userId' },
+            { method: 'POST', path: '/api/data/:type/:userId' },
+            { method: 'POST', path: '/api/profile/:userId' },
+        ],
     });
-}
+});
 
-makeDataRoutes('tasks', 'user_tasks', 'tasks');
-makeDataRoutes('courses', 'user_courses', 'courses');
-makeDataRoutes('papers', 'user_papers', 'papers');
-makeDataRoutes('sessions', 'user_sessions', 'sessions');
-makeDataRoutes('bookmarks', 'user_bookmarks', 'bookmarks');
-makeDataRoutes('activity', 'user_activity', 'log');
-makeDataRoutes('streak', 'user_streak', 'streak');
-makeDataRoutes('profile', 'user_profile', 'profile');
-makeDataRoutes('newsread', 'user_news_read', 'newsRead');
 
-// ─── Start Server ───
+// ─── Start Server ────────────────────────────────────
 app.listen(PORT, () => {
-    console.log(`
-╔══════════════════════════════════════════════════╗
-║          🚀 TenX API Server Running             ║
-╠══════════════════════════════════════════════════╣
-║  Local:     http://localhost:${PORT}                ║
-║  Docs:      http://localhost:${PORT}/docs            ║
-║  Health:    http://localhost:${PORT}/api/health      ║
-║  Database:  ${(supabase ? 'Supabase PostgreSQL' : 'SQLite (local)').padEnd(20)}         ║
-║  Groq AI:   ${GROQ_API_KEY ? '✅ Connected     ' : '❌ Not configured'}         ║
-║  GNews:     ${GNEWS_API_KEY ? '✅ Connected     ' : '❌ Not configured'}         ║
-╚══════════════════════════════════════════════════╝
-    `);
+    console.log(`\n⚡ TENX API v3.0 — http://localhost:${PORT}`);
+    console.log(`🤖 Groq AI: ${GROQ_API_KEY ? '✅' : '❌'} | 📰 GNews: ${GNEWS_API_KEY ? '✅' : '❌'}\n`);
 });

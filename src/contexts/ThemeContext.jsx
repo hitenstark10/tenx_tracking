@@ -56,8 +56,12 @@ export function ThemeProvider({ children }) {
             const { h, s, l } = hexToHSL(accentColor);
             document.documentElement.style.setProperty('--accent-primary', accentColor);
             document.documentElement.style.setProperty('--accent-secondary', `hsl(${h}, ${s}%, ${Math.min(l + 15, 90)}%)`);
+            document.documentElement.style.setProperty('--accent-primary-light', `hsl(${h}, ${s}%, ${Math.min(l + 10, 85)}%)`);
+            document.documentElement.style.setProperty('--accent-primary-dark', `hsl(${h}, ${s}%, ${Math.max(l - 10, 20)}%)`);
             document.documentElement.style.setProperty('--accent-gradient', `linear-gradient(135deg, ${accentColor}, hsl(${h + 20}, ${s}%, ${l}%))`);
+            document.documentElement.style.setProperty('--accent-gradient-hover', `linear-gradient(135deg, hsl(${h}, ${s}%, ${Math.min(l + 5, 80)}%), hsl(${h + 20}, ${s}%, ${Math.min(l + 5, 80)}%))`);
             document.documentElement.style.setProperty('--accent-glow', `${accentColor}33`);
+            document.documentElement.style.setProperty('--shadow-glow', `0 0 20px ${accentColor}25`);
             saveAccentColor(accentColor);
         }
     }, [accentColor]);
@@ -71,7 +75,12 @@ export function ThemeProvider({ children }) {
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, accentColor, changeAccentColor, accentColors: ACCENT_COLORS }}>
+        <ThemeContext.Provider value={{
+            theme, setTheme,
+            accentColor, setAccentColor,
+            toggleTheme, changeAccentColor,
+            accentColors: ACCENT_COLORS
+        }}>
             {children}
         </ThemeContext.Provider>
     );

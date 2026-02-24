@@ -19,22 +19,31 @@ function getThemeColors(theme) {
     };
 }
 
-const PALETTE = ['#818cf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#f87171', '#22d3ee'];
+// Use CSS variable accent color for chart colors, with fallbacks
+function getAccentPalette(accentColor) {
+    // Build palette from accent color with variations
+    const base = accentColor || '#6366f1';
+    return [base, '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#f87171', '#22d3ee'];
+}
 
 export function LineChart({ labels, datasets, title, height = 260 }) {
-    const { theme } = useTheme();
+    const { theme, accentColor } = useTheme();
     const tc = getThemeColors(theme);
+    const palette = getAccentPalette(accentColor);
 
     const data = {
         labels,
         datasets: datasets.map((ds, i) => ({
             label: ds.label,
             data: ds.data,
-            borderColor: PALETTE[i % PALETTE.length],
-            backgroundColor: PALETTE[i % PALETTE.length] + '22',
+            borderColor: palette[i % palette.length],
+            backgroundColor: palette[i % palette.length] + '22',
             borderWidth: 2,
             pointRadius: 3,
             pointHoverRadius: 6,
+            pointBackgroundColor: palette[i % palette.length],
+            pointBorderColor: theme === 'dark' ? '#12151f' : '#ffffff',
+            pointBorderWidth: 2,
             tension: 0.4,
             fill: true,
         })),
@@ -67,10 +76,11 @@ export function LineChart({ labels, datasets, title, height = 260 }) {
 }
 
 export function BarChart({ labels, datasets, title, height = 260 }) {
-    const { theme } = useTheme();
+    const { theme, accentColor } = useTheme();
     const tc = getThemeColors(theme);
 
-    const barColors = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#a78bfa', '#60a5fa'];
+    // Use accent-aware colors for bars
+    const barColors = [accentColor || '#818cf8', '#f87171', '#34d399', '#fbbf24', '#a78bfa', '#60a5fa'];
 
     const data = {
         labels,
@@ -144,14 +154,18 @@ const centerTextPlugin = {
 ChartJS.register(centerTextPlugin);
 
 export function DoughnutChart({ labels, data: dataValues, centerText, height = 200 }) {
-    const { theme } = useTheme();
+    const { theme, accentColor } = useTheme();
     const tc = getThemeColors(theme);
+
+    // Use accent color as primary donut color
+    const primaryColor = accentColor || '#818cf8';
+    const bgColor = theme === 'dark' ? '#2a2f42' : '#e0e4ef';
 
     const data = {
         labels,
         datasets: [{
             data: dataValues,
-            backgroundColor: ['#818cf8', '#2a2f42', '#a78bfa', '#34d399', '#fbbf24'],
+            backgroundColor: [primaryColor, bgColor, '#a78bfa', '#34d399', '#fbbf24'],
             borderColor: theme === 'dark' ? '#12151f' : '#ffffff',
             borderWidth: 3,
             hoverOffset: 6,

@@ -1,76 +1,137 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
-import { fetchNews } from '../utils/newsService';
 import {
     TrendingUp, Search, Bookmark, BookmarkCheck, ExternalLink,
     Eye, Globe, Loader, RefreshCw
 } from 'lucide-react';
 import './Trending.css';
+import { BACKEND_URL } from '../config';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// ─── Constants ───
+const NEWS_INTERVAL_MS = 288 * 60 * 1000; // 288 minutes (~5 calls/day)
+const NEWS_CACHE_KEY = 'tenx_news_articles';
+const NEWS_CACHE_DATE_KEY = 'tenx_news_cache_date';
+
+function getToday() {
+    return new Date().toISOString().slice(0, 10);
+}
 
 export default function Trending() {
     const { bookmarks, toggleBookmark, markArticleRead, isArticleRead } = useData();
     const [articles, setArticles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [fetchInfo, setFetchInfo] = useState({ fetchCount: 0, maxFetches: 10 });
     const [searchQ, setSearchQ] = useState('');
     const [filterCat, setFilterCat] = useState('all');
     const [filterState, setFilterState] = useState('all');
     const [readerArticle, setReaderArticle] = useState(null);
+    const newsTimerRef = useRef(null);
 
-    // Fetch news from backend API, falling back to frontend newsService
-    const loadNews = useCallback(async (isRefresh = false) => {
-        try {
-            const bookmarkedIds = bookmarks.map(b => b.id).join(',');
-            const endpoint = isRefresh ? '/api/news/refresh' : '/api/news';
-            const url = `${API_BASE}${endpoint}${bookmarkedIds ? `?bookmarked=${bookmarkedIds}` : ''}`;
+    // ─── Daily Reset Logic ───
+    // On each load: if it's a new day, clear non-bookmarked articles from cache
+    const performDailyReset = useCallback(() => {
+        const cachedDate = localStorage.getItem(NEWS_CACHE_DATE_KEY);
+        const today = getToday();
 
-            const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-            if (resp.ok) {
-                const data = await resp.json();
-                // Map backend fields to frontend expected fields
-                const mapped = (data.articles || []).map(a => ({
-                    id: a.id,
-                    title: a.title,
-                    summary: a.description || a.summary || '',
-                    content: a.content || a.description || '',
-                    image: a.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop',
-                    source: typeof a.source === 'object' ? a.source.name : (a.source || 'Unknown'),
-                    url: a.url,
-                    date: a.date || a.publishedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-                    category: a.category || 'AI',
-                }));
-                setArticles(mapped);
-                setFetchInfo({ fetchCount: data.fetchCount || 0, maxFetches: data.maxFetches || 10 });
-                return;
-            }
-        } catch (e) {
-            console.warn('Backend news fetch failed, using local service:', e.message);
+        if (cachedDate && cachedDate !== today) {
+            // New day: remove all non-bookmarked articles
+            const bookmarkedIds = new Set(bookmarks.map(b => b.id));
+            const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || '[]');
+            const kept = cached.filter(a => bookmarkedIds.has(a.id));
+            localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(kept));
+            localStorage.setItem(NEWS_CACHE_DATE_KEY, today);
+            return kept;
         }
 
-        // Fallback to local newsService
-        const localData = await fetchNews();
-        setArticles(localData);
+        if (!cachedDate) {
+            localStorage.setItem(NEWS_CACHE_DATE_KEY, today);
+        }
+
+        // Same day: return existing cache
+        try {
+            return JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || '[]');
+        } catch {
+            return [];
+        }
     }, [bookmarks]);
 
-    useEffect(() => {
-        loadNews().finally(() => setLoading(false));
+    // ─── Fetch news from backend API ───
+    const fetchNews = useCallback(async () => {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/news?t=${Date.now()}`, {
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+
+            const newArticles = (data.articles || []).map(a => ({
+                id: a.id,
+                title: a.title,
+                summary: a.description || a.summary || '',
+                content: a.content || a.description || '',
+                image: a.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop',
+                source: typeof a.source === 'object' ? a.source.name : (a.source || 'Unknown'),
+                url: a.url,
+                date: a.date || a.publishedAt?.slice(0, 10) || getToday(),
+                category: a.category || 'AI',
+            }));
+
+            if (newArticles.length > 0) {
+                // APPEND new articles below existing ones (no duplicates)
+                setArticles(prev => {
+                    const existingTitles = new Set(prev.map(a => a.title));
+                    const unique = newArticles.filter(a => !existingTitles.has(a.title));
+                    const merged = [...prev, ...unique];
+
+                    // Persist to localStorage
+                    try {
+                        localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(merged));
+                        localStorage.setItem(NEWS_CACHE_DATE_KEY, getToday());
+                    } catch { }
+
+                    return merged;
+                });
+            }
+
+            return newArticles;
+        } catch (err) {
+            console.warn('News API fetch failed, using cache:', err.message);
+            // On failure: use cached articles (already loaded)
+            return [];
+        }
     }, []);
 
+    // ─── Initialize: Daily reset → Load cache → Fetch fresh ───
+    useEffect(() => {
+        const init = async () => {
+            // 1. Perform daily reset (clears non-bookmarked if new day)
+            const cachedArticles = performDailyReset();
+            setArticles(cachedArticles);
+
+            // 2. Fetch fresh articles from API
+            await fetchNews();
+            setLoading(false);
+        };
+        init();
+
+        // 3. Set up timer: fetch every 288 minutes
+        newsTimerRef.current = setInterval(fetchNews, NEWS_INTERVAL_MS);
+        return () => clearInterval(newsTimerRef.current);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Manual Refresh ───
     const handleRefresh = async () => {
         if (refreshing) return;
         setRefreshing(true);
-        await loadNews(true);
+        await fetchNews();
         setRefreshing(false);
     };
 
     const isBookmarked = (id) => bookmarks.some(b => b.id === id);
 
+    // ─── Filtering: merge current articles + bookmarks not in list ───
     const filtered = useMemo(() => {
-        // Merge: current articles + bookmarked articles not in current set
         const mergedMap = new Map();
         articles.forEach(a => mergedMap.set(a.id, a));
         bookmarks.forEach(b => { if (!mergedMap.has(b.id)) mergedMap.set(b.id, b); });
@@ -103,14 +164,10 @@ export default function Trending() {
             <div className="page-header">
                 <h1><TrendingUp size={28} /> Trending in AI/ML</h1>
                 <div className="trending-header-actions">
-                    <span className="trending-fetch-info">
-                        {fetchInfo.fetchCount}/{fetchInfo.maxFetches} fetches today
-                    </span>
                     <button
                         className={`btn btn-ghost btn-sm trending-refresh-btn ${refreshing ? 'spinning' : ''}`}
                         onClick={handleRefresh}
-                        disabled={refreshing || fetchInfo.fetchCount >= fetchInfo.maxFetches}
-                        title={fetchInfo.fetchCount >= fetchInfo.maxFetches ? 'Daily fetch limit reached' : 'Fetch new articles'}
+                        disabled={refreshing}
                     >
                         <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                         {refreshing ? 'Fetching...' : 'Refresh'}

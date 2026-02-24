@@ -122,7 +122,7 @@ export default function Courses() {
             <div className="co-analytics-row">
                 <div className="co-donut-card card">
                     <h4>Today's Completion</h4>
-                    <DoughnutChart labels={['Completed', 'Remaining']} data={[todayCompleted, Math.max(0, todayTotal - todayCompleted)]} centerText={`${todayPct}%`} height={400} />
+                    <DoughnutChart labels={['Completed', 'Remaining']} data={[todayCompleted, Math.max(0, todayTotal - todayCompleted)]} centerText={`${todayPct}%`} height={160} />
                 </div>
                 <div className="co-bar-card card">
                     <div className="co-bar-header">
@@ -135,12 +135,12 @@ export default function Courses() {
                     <BarChart labels={labels} datasets={[
                         { label: 'Completed', data: completedData },
                         { label: 'Remaining', data: remainingData },
-                    ]} height={300} />
+                    ]} height={180} />
                 </div>
                 {/* </div> */}
 
                 {/* Heatmap — tracks course topics/subtopics only */}
-                <div className="card" style={{ marginBottom: 24 }}>
+                <div className="co-heatmap-card card">
                     <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Calendar size={18} color="var(--accent-primary)" /> Course Activity
                     </h4>

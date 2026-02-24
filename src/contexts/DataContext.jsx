@@ -7,11 +7,14 @@ import {
     getStudySessions, saveStudySessions,
     getBookmarks, saveBookmarks,
     getStreak, saveStreak,
-    getActivityLog, logActivity,
+    getActivityLog, saveActivityLog,
     getNewsRead, saveNewsRead,
     getProfile, saveProfile,
+    // Helper to log
+    logActivity as logActivityLocal
 } from '../utils/storage';
 import { generateId, getToday, calculateStreak } from '../utils/helpers';
+import { BACKEND_URL } from '../config';
 
 const DataContext = createContext();
 export const useData = () => useContext(DataContext);
@@ -28,19 +31,141 @@ export function DataProvider({ children }) {
     const [newsRead, setNewsRead] = useState([]);
     const [profile, setProfileState] = useState({ username: '', bio: '', profileImage: '' });
 
-    useEffect(() => {
-        if (user) {
-            setDailyTasks(getDailyTasks());
-            setCourses(getCourses());
-            setResearchPapers(getResearchPapers());
-            setStudySessions(getStudySessions());
-            setBookmarks(getBookmarks());
-            setStreak(getStreak());
-            setActivityLog(getActivityLog());
-            setNewsRead(getNewsRead());
-            setProfileState(getProfile() || { username: user.username, bio: '', profileImage: '' });
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    // ─── Sync Helpers ───
+    const fetchData = async (type, userId) => {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/data/${type}/${userId}`);
+            if (res.ok) {
+                const json = await res.json();
+                // Return the data — even if it's an empty array or empty object
+                // null/undefined means "no row in DB yet"
+                return { found: true, value: json.data };
+            }
+        } catch (e) {
+            console.error(`Failed to fetch ${type}:`, e.message);
         }
+        return { found: false, value: null };
+    };
+
+    const syncData = async (type, data, userId) => {
+        try {
+            await fetch(`${BACKEND_URL}/api/data/${type}/${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data })
+            });
+        } catch (e) {
+            console.error(`Failed to sync ${type}:`, e.message);
+        }
+    };
+
+    // ─── Initialization: ALWAYS load from Supabase (cloud = source of truth) ───
+    useEffect(() => {
+        if (!user) return;
+
+        // Reset to empty state immediately
+        setIsLoaded(false);
+        setDailyTasks([]);
+        setCourses([]);
+        setResearchPapers([]);
+        setStudySessions([]);
+        setBookmarks([]);
+        setStreak({ count: 0, lastDate: null });
+        setActivityLog([]);
+        setNewsRead([]);
+        setProfileState({
+            username: user.username,
+            displayName: user.username,
+            bio: user.bio || '',
+            profileImage: user.profileImage || '',
+        });
+
+        // Fetch ALL data from Supabase — cloud is the single source of truth
+        Promise.all([
+            fetchData('tasks', user.id),
+            fetchData('courses', user.id),
+            fetchData('papers', user.id),
+            fetchData('sessions', user.id),
+            fetchData('bookmarks', user.id),
+            fetchData('streak', user.id),
+            fetchData('activity', user.id),
+            fetchData('newsread', user.id),
+            fetchData('profile', user.id),
+        ]).then(([tasks, coursesRes, papers, sessions, bkmk, strk, act, news, prof]) => {
+            // Apply cloud data — use cloud value even if empty (to ensure consistency across browsers)
+            if (tasks.found) { setDailyTasks(tasks.value || []); saveDailyTasks(tasks.value || []); }
+            if (coursesRes.found) { setCourses(coursesRes.value || []); saveCourses(coursesRes.value || []); }
+            if (papers.found) { setResearchPapers(papers.value || []); saveResearchPapers(papers.value || []); }
+            if (sessions.found) { setStudySessions(sessions.value || []); saveStudySessions(sessions.value || []); }
+            if (bkmk.found) { setBookmarks(bkmk.value || []); saveBookmarks(bkmk.value || []); }
+            if (strk.found && strk.value) { setStreak(strk.value); saveStreak(strk.value); }
+            if (act.found) { setActivityLog(act.value || []); saveActivityLog(act.value || []); }
+            if (news.found) { setNewsRead(news.value || []); saveNewsRead(news.value || []); }
+
+            // Profile: merge from DB with user info as fallback
+            const profData = prof.found ? prof.value : null;
+            if (profData && typeof profData === 'object' && Object.keys(profData).length > 0) {
+                const mergedProfile = {
+                    username: profData.username || user.username,
+                    displayName: profData.displayName || profData.username || user.username,
+                    bio: profData.bio || user.bio || '',
+                    profileImage: profData.profileImage || user.profileImage || '',
+                    ...profData,
+                };
+                setProfileState(mergedProfile);
+                saveProfile(mergedProfile);
+            } else {
+                const initialProfile = {
+                    username: user.username,
+                    displayName: user.username,
+                    bio: user.bio || '',
+                    profileImage: user.profileImage || '',
+                };
+                setProfileState(initialProfile);
+                saveProfile(initialProfile);
+            }
+
+            setIsLoaded(true);
+        }).catch(err => {
+            console.error('Data initialization failed:', err);
+            // Even on failure, mark as loaded so UI isn't stuck
+            setIsLoaded(true);
+        });
     }, [user]);
+
+    // ─── Auto-Save to Supabase (debounced, only AFTER initial load) ───
+    const syncTimers = {};
+    const debouncedSync = useCallback((type, data) => {
+        if (!user || !isLoaded) return;
+        clearTimeout(syncTimers[type]);
+        syncTimers[type] = setTimeout(() => {
+            syncData(type, data, user.id);
+        }, 500); // 500ms debounce to batch rapid changes
+    }, [user, isLoaded]);
+
+    useEffect(() => { debouncedSync('tasks', dailyTasks); }, [dailyTasks, debouncedSync]);
+    useEffect(() => { debouncedSync('courses', courses); }, [courses, debouncedSync]);
+    useEffect(() => { debouncedSync('papers', researchPapers); }, [researchPapers, debouncedSync]);
+    useEffect(() => { debouncedSync('sessions', studySessions); }, [studySessions, debouncedSync]);
+    useEffect(() => { debouncedSync('bookmarks', bookmarks); }, [bookmarks, debouncedSync]);
+    useEffect(() => { debouncedSync('streak', streak); }, [streak, debouncedSync]);
+    useEffect(() => { debouncedSync('activity', activityLog); }, [activityLog, debouncedSync]);
+    useEffect(() => { debouncedSync('newsread', newsRead); }, [newsRead, debouncedSync]);
+    useEffect(() => { debouncedSync('profile', profile); }, [profile, debouncedSync]);
+
+
+
+    // ─── Logic (Wrapped handlers) ───
+    // NOTE: Handlers update state -> Effect triggers Sync. 
+    // We keep local storage saves for redundancy/offline support.
+
+    const logActivity = (type, count) => {
+        const log = logActivityLocal(type, count);
+        setActivityLog(log); // Updates state -> triggers sync
+        return log;
+    };
 
     // ─── Daily Tasks ───
     const addDailyTask = useCallback((task) => {
@@ -52,15 +177,15 @@ export function DataProvider({ children }) {
         setDailyTasks(prev => {
             const next = prev.map(t => t.id === id ? { ...t, ...updates } : t);
             saveDailyTasks(next);
-            // Update streak with full context
+            // Update streak
             if (updates.completed !== undefined) {
+                // We need access to latest state for calculation. 
+                // This is tricky inside callback. Relying on current state (closure) might be stale?
+                // But 'courses' etc are dependencies.
                 const newStreak = calculateStreak(next, streak, courses, researchPapers, newsRead);
                 setStreak(newStreak);
                 saveStreak(newStreak);
-                if (updates.completed) {
-                    const log = logActivity('tasks', 1);
-                    setActivityLog(log);
-                }
+                if (updates.completed) logActivity('tasks', 1);
             }
             return next;
         });
@@ -103,10 +228,7 @@ export function DataProvider({ children }) {
                 return { ...c, topics: c.topics.map(t => t.id === topicId ? { ...t, ...updates } : t) };
             });
             saveCourses(next);
-            if (updates.completed) {
-                const log = logActivity('curriculum', 1);
-                setActivityLog(log);
-            }
+            if (updates.completed) logActivity('curriculum', 1);
             return next;
         });
     }, []);
@@ -128,11 +250,10 @@ export function DataProvider({ children }) {
             const next = prev.map(c => {
                 if (c.id !== courseId) return c;
                 return {
-                    ...c,
-                    topics: c.topics.map(t => {
+                    ...c, topics: c.topics.map(t => {
                         if (t.id !== topicId) return t;
                         return { ...t, subtopics: [...(t.subtopics || []), { id: generateId(), completed: false, resources: [], ...subtopic }] };
-                    }),
+                    })
                 };
             });
             saveCourses(next);
@@ -145,18 +266,14 @@ export function DataProvider({ children }) {
             const next = prev.map(c => {
                 if (c.id !== courseId) return c;
                 return {
-                    ...c,
-                    topics: c.topics.map(t => {
+                    ...c, topics: c.topics.map(t => {
                         if (t.id !== topicId) return t;
                         return { ...t, subtopics: (t.subtopics || []).map(s => s.id === subId ? { ...s, ...updates } : s) };
-                    }),
+                    })
                 };
             });
             saveCourses(next);
-            if (updates.completed) {
-                const log = logActivity('curriculum', 1);
-                setActivityLog(log);
-            }
+            if (updates.completed) logActivity('curriculum', 1);
             return next;
         });
     }, []);
@@ -166,11 +283,10 @@ export function DataProvider({ children }) {
             const next = prev.map(c => {
                 if (c.id !== courseId) return c;
                 return {
-                    ...c,
-                    topics: c.topics.map(t => {
+                    ...c, topics: c.topics.map(t => {
                         if (t.id !== topicId) return t;
                         return { ...t, subtopics: (t.subtopics || []).filter(s => s.id !== subId) };
-                    }),
+                    })
                 };
             });
             saveCourses(next);
@@ -178,31 +294,27 @@ export function DataProvider({ children }) {
         });
     }, []);
 
-    // ─── Resources (topic or subtopic level) ───
+    // ─── Resources ───
     const addResource = useCallback((courseId, topicId, subtopicId, resource) => {
         setCourses(prev => {
             const next = prev.map(c => {
                 if (c.id !== courseId) return c;
-                return {
-                    ...c,
-                    topics: c.topics.map(t => {
-                        if (t.id !== topicId) return t;
-                        if (subtopicId) {
-                            return {
-                                ...t, subtopics: (t.subtopics || []).map(s => {
-                                    if (s.id !== subtopicId) return s;
-                                    return { ...s, resources: [...(s.resources || []), { id: generateId(), ...resource }] };
-                                })
-                            };
-                        }
-                        // Topic-level resource
-                        return { ...t, resources: [...(t.resources || []), { id: generateId(), ...resource }] };
-                    }),
+                const updateTopics = (t) => {
+                    if (t.id !== topicId) return t;
+                    if (subtopicId) {
+                        return {
+                            ...t, subtopics: (t.subtopics || []).map(s => {
+                                if (s.id !== subtopicId) return s;
+                                return { ...s, resources: [...(s.resources || []), { id: generateId(), ...resource }] };
+                            })
+                        };
+                    }
+                    return { ...t, resources: [...(t.resources || []), { id: generateId(), ...resource }] };
                 };
+                return { ...c, topics: c.topics.map(updateTopics) };
             });
             saveCourses(next);
-            const log = logActivity('resources', 1);
-            setActivityLog(log);
+            logActivity('resources', 1);
             return next;
         });
     }, []);
@@ -211,21 +323,19 @@ export function DataProvider({ children }) {
         setCourses(prev => {
             const next = prev.map(c => {
                 if (c.id !== courseId) return c;
-                return {
-                    ...c,
-                    topics: c.topics.map(t => {
-                        if (t.id !== topicId) return t;
-                        if (subtopicId) {
-                            return {
-                                ...t, subtopics: (t.subtopics || []).map(s => {
-                                    if (s.id !== subtopicId) return s;
-                                    return { ...s, resources: (s.resources || []).filter(r => r.id !== resourceId) };
-                                })
-                            };
-                        }
-                        return { ...t, resources: (t.resources || []).filter(r => r.id !== resourceId) };
-                    }),
+                const updateTopics = (t) => {
+                    if (t.id !== topicId) return t;
+                    if (subtopicId) {
+                        return {
+                            ...t, subtopics: (t.subtopics || []).map(s => {
+                                if (s.id !== subtopicId) return s;
+                                return { ...s, resources: (s.resources || []).filter(r => r.id !== resourceId) };
+                            })
+                        };
+                    }
+                    return { ...t, resources: (t.resources || []).filter(r => r.id !== resourceId) };
                 };
+                return { ...c, topics: c.topics.map(updateTopics) };
             });
             saveCourses(next);
             return next;
@@ -248,25 +358,18 @@ export function DataProvider({ children }) {
             const next = prev.map(p => {
                 if (p.id !== id) return p;
                 const updated = { ...p, ...updates };
-                // Track progress history when completion changes
                 if (updates.completionPercentage !== undefined && updates.completionPercentage !== p.completionPercentage) {
                     const history = [...(p.progressHistory || [])];
                     const today = getToday();
                     const existingIdx = history.findIndex(h => h.date === today);
-                    if (existingIdx >= 0) {
-                        history[existingIdx] = { date: today, percentage: updates.completionPercentage };
-                    } else {
-                        history.push({ date: today, percentage: updates.completionPercentage });
-                    }
+                    if (existingIdx >= 0) { history[existingIdx] = { date: today, percentage: updates.completionPercentage }; }
+                    else { history.push({ date: today, percentage: updates.completionPercentage }); }
                     updated.progressHistory = history;
                 }
                 return updated;
             });
             saveResearchPapers(next);
-            if (updates.completionPercentage !== undefined) {
-                const log = logActivity('papers', 1);
-                setActivityLog(log);
-            }
+            if (updates.completionPercentage !== undefined) logActivity('papers', 1);
             return next;
         });
     }, []);
@@ -303,7 +406,7 @@ export function DataProvider({ children }) {
         setStudySessions(prev => { const next = [...prev, newSession]; saveStudySessions(next); return next; });
     }, []);
 
-    // ─── Bookmarks (for news) ───
+    // ─── Bookmarks ───
     const toggleBookmark = useCallback((article) => {
         setBookmarks(prev => {
             const exists = prev.find(b => b.id === article.id);
@@ -321,14 +424,13 @@ export function DataProvider({ children }) {
         });
     }, []);
 
-    // ─── News Read Tracking ───
+    // ─── News Read ───
     const markArticleRead = useCallback((articleId) => {
         setNewsRead(prev => {
             if (prev.includes(articleId)) return prev;
             const next = [...prev, articleId];
             saveNewsRead(next);
-            const log = logActivity('articlesRead', 1);
-            setActivityLog(log);
+            logActivity('articlesRead', 1);
             return next;
         });
     }, []);
@@ -342,11 +444,25 @@ export function DataProvider({ children }) {
         setProfileState(prev => {
             const next = { ...prev, ...updates };
             saveProfile(next);
+
+            // Also sync to Supabase profiles table (proper SQL columns)
+            if (user?.id) {
+                fetch(`${BACKEND_URL}/api/profile/${user.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: next.displayName || next.username,
+                        bio: next.bio || '',
+                        profileImage: next.profileImage || '',
+                    }),
+                }).catch(e => console.warn('Profile sync to profiles table failed:', e));
+            }
+
             return next;
         });
-    }, []);
+    }, [user]);
 
-    // ─── Computed ───
+    // ─── Computed Stats ───
     const today = getToday();
     const todayTasks = dailyTasks.filter(t => t.date === today);
     const todayCompletedTasks = todayTasks.filter(t => t.completed).length;

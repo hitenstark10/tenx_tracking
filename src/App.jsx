@@ -3,6 +3,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import Sidebar from './components/Sidebar';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import DailyTasks from './pages/DailyTasks';
@@ -46,12 +47,19 @@ function AuthRoute() {
   return <Login />;
 }
 
+function LandingRoute() {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return <Landing />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <Routes>
+            <Route path="/" element={<LandingRoute />} />
             <Route path="/login" element={<AuthRoute />} />
             <Route path="/*" element={<ProtectedLayout />} />
           </Routes>

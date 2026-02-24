@@ -92,7 +92,7 @@ export default function DailyTasks() {
                         labels={['Completed', 'Remaining']}
                         data={[todayDone, todayTasksList.length - todayDone]}
                         centerText={`${todayPct}%`}
-                        height={400}
+                        height={160}
                     />
                 </div>
                 <div className="dt-bar-card card">
@@ -109,13 +109,13 @@ export default function DailyTasks() {
                             { label: 'Completed', data: completedData },
                             { label: 'Remaining', data: remainingData },
                         ]}
-                        height={300}
+                        height={180}
                     />
                 </div>
                 {/* </div> */}
 
                 {/* Heatmap — only daily tasks */}
-                <div className="card" style={{ marginBottom: 24 }}>
+                <div className="dt-heatmap-card card">
                     <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Calendar size={18} color="var(--accent-primary)" /> Task Activity
                     </h4>

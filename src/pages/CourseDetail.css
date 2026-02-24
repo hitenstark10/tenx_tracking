@@ -36,6 +36,45 @@
     color: var(--accent-primary);
 }
 
+/* ═══ Word Frequency Cloud ═══ */
+.cd-word-cloud {
+    margin-bottom: 20px;
+    padding: 16px !important;
+}
+
+.cd-word-cloud-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cd-word-cloud-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 14px;
+    padding: 12px 8px;
+    min-height: 60px;
+}
+
+.cd-word {
+    cursor: default;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+
+.cd-word:hover {
+    transform: scale(1.15);
+    background: rgba(255, 255, 255, 0.05);
+    text-shadow: 0 0 8px currentColor;
+}
+
 .topic-tree {
     display: flex;
     flex-direction: column;

@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import {
     LayoutDashboard, CheckSquare, BookOpen, FileText, TrendingUp,
-    ChevronLeft, ChevronRight, Zap, User
+    ChevronLeft, ChevronRight, User, Settings
 } from 'lucide-react';
 import { useState } from 'react';
 import './Sidebar.css';
@@ -14,29 +14,55 @@ const navItems = [
     { path: '/courses', label: 'Courses', icon: BookOpen },
     { path: '/research', label: 'Research', icon: FileText },
     { path: '/trending', label: 'Trending', icon: TrendingUp },
-    { path: '/profile', label: 'Profile', icon: User },
 ];
 
 export default function Sidebar() {
     const { user } = useAuth();
-    const { streak } = useData();
+    const { streak, profile } = useData();
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
+
+    const avatarUrl = profile?.profileImage || user?.profileImage;
+    const displayName = profile?.displayName || user?.username || 'User';
 
     return (
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
             <div className="sidebar-inner">
                 {/* Logo */}
                 <div className="sidebar-logo">
-                    <div className="logo-icon">
-                        <Zap size={22} />
-                    </div>
+                    {/* <div className="logo-icon" style={{
+                        background: 'var(--accent-glow)',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.7rem',
+                        fontWeight: '800',
+                        letterSpacing: '-0.5px'
+                    }}>
+                        TENX
+                    </div> */}
+                    <img src="logo.png" alt={displayName} className="sidebar-profile-img" />
                     {!collapsed && (
                         <div className="logo-text">
-                            <span className="logo-name">TenX</span>
-                            <span className="logo-sub">Learning OS</span>
+                            <span className="logo-name" style={{ fontSize: '1.1rem', background: 'none', WebkitTextFillColor: 'var(--text-primary)', color: 'var(--text-primary)' }}>TENX Track Learning</span>
                         </div>
                     )}
+                </div>
+
+                {/* User Profile Section — below logo, above nav */}
+                <div className="sidebar-profile-section">
+                    <NavLink to="/profile" className="sidebar-profile-link" title={collapsed ? displayName : undefined}>
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt={displayName} className="sidebar-profile-img" />
+                        ) : (
+                            <div className="user-avatar">{displayName[0].toUpperCase()}</div>
+                        )}
+                        {!collapsed && (
+                            <div className="sidebar-profile-info">
+                                <span className="sidebar-profile-name">{displayName}</span>
+                                <span className="sidebar-profile-role">Learner</span>
+                            </div>
+                        )}
+                        {!collapsed && <Settings size={14} className="sidebar-profile-gear" />}
+                    </NavLink>
                 </div>
 
                 {/* Navigation */}
@@ -66,14 +92,6 @@ export default function Sidebar() {
                         <div className="sidebar-streak" title={`${streak.count} day streak`}>
                             <span className="streak-fire">🔥</span>
                             {!collapsed && <span className="streak-count">{streak.count} day streak</span>}
-                        </div>
-                    )}
-
-                    {/* User Info */}
-                    {!collapsed && user && (
-                        <div className="sidebar-user">
-                            <div className="user-avatar">{user.username[0].toUpperCase()}</div>
-                            <span className="user-name">{user.username}</span>
                         </div>
                     )}
 
