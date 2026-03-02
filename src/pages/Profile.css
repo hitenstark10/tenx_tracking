@@ -99,6 +99,10 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .profile-bio {
@@ -134,13 +138,31 @@
     align-items: center;
     text-align: center;
     border: 1px solid var(--border-color);
-    transition: all 0.25s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-gradient);
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
 .profile-stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     border-color: var(--accent-primary);
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-glow), var(--shadow-md);
+}
+
+.profile-stat-card:hover::before {
+    opacity: 1;
 }
 
 .profile-stat-icon {
@@ -260,12 +282,12 @@
     border: 1px dashed var(--border-color);
     background: var(--bg-subtle);
     opacity: 0.65;
-    transition: all 0.25s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-milestone:hover {
     opacity: 0.85;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
 }
 
 .profile-milestone.achieved {
@@ -277,7 +299,7 @@
 }
 
 .profile-milestone.achieved:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow: var(--shadow-md), 0 0 20px var(--accent-glow);
 }
 
@@ -291,11 +313,13 @@
     justify-content: center;
     color: var(--text-tertiary);
     flex-shrink: 0;
+    transition: all 0.3s ease;
 }
 
 .profile-milestone.achieved .profile-milestone-icon {
     background: var(--accent-gradient);
     color: white;
+    box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .profile-milestone-info {
@@ -333,112 +357,6 @@
     text-align: center;
     font-weight: 500;
 }
-
-/* ═══ Appearance ═══ */
-.profile-appearance-card {
-    padding: 20px;
-}
-
-.profile-theme-toggle {
-    margin-bottom: 20px;
-}
-
-.profile-theme-toggle label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-}
-
-.profile-theme-options {
-    display: flex;
-    gap: 8px;
-    background: var(--bg-tertiary);
-    padding: 4px;
-    border-radius: var(--radius-md);
-}
-
-.profile-theme-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.85rem;
-    font-weight: 500;
-    font-family: inherit;
-}
-
-.profile-theme-btn:hover {
-    color: var(--text-primary);
-}
-
-.profile-theme-btn.active {
-    background: var(--bg-primary);
-    color: var(--accent-primary);
-    box-shadow: var(--shadow-sm);
-}
-
-.profile-accent-section label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-}
-
-.profile-accent-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
-}
-
-.profile-accent-btn {
-    width: 100%;
-    aspect-ratio: 1;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    position: relative;
-    transition: transform 0.2s;
-}
-
-.profile-accent-btn:hover {
-    transform: scale(1.1);
-}
-
-.profile-accent-swatch {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--ac);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
-    transition: transform 0.2s;
-}
-
-.profile-accent-btn.active .profile-accent-swatch {
-    transform: scale(0.8);
-}
-
-.profile-accent-btn svg {
-    position: absolute;
-    color: white;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
-    pointer-events: none;
-}
-
 
 /* ═══ Account ═══ */
 .profile-account-card {
@@ -520,6 +438,12 @@
 }
 
 /* ═══ Responsive ═══ */
+@media (max-width: 1024px) {
+    .profile-two-col {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 @media (max-width: 900px) {
     .profile-two-col {
         grid-template-columns: 1fr;
@@ -547,5 +471,24 @@
 
     .profile-milestones-grid {
         grid-template-columns: 1fr;
+    }
+
+    .profile-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-hero {
+        padding: 16px;
+    }
+
+    .profile-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .profile-stat-card {
+        padding: 10px;
     }
 }

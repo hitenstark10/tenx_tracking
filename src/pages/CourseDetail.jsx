@@ -328,10 +328,20 @@ export default function CourseDetail() {
             <Modal isOpen={!!resourceModal} onClose={() => setResourceModal(null)} title="Upload Resource"
                 footer={<><button className="btn btn-secondary" onClick={() => setResourceModal(null)}>Cancel</button><button className="btn btn-primary" onClick={handleAddResource}>Add Resource</button></>}>
                 <div className="modal-form">
-                    <div className="input-group"><label>Upload File (PDF / Video / Doc)</label><input type="file" accept=".pdf,.doc,.docx,video/*" className="input" onChange={handleFileUpload} /></div>
-                    <div className="input-group"><label>Resource Name</label><input className="input" value={resourceForm.name} onChange={e => setResourceForm({ ...resourceForm, name: e.target.value })} /></div>
-                    <div className="input-group"><label>Type</label><select className="select" value={resourceForm.type} onChange={e => setResourceForm({ ...resourceForm, type: e.target.value })}><option value="pdf">PDF</option><option value="video">Video</option><option value="doc">Doc</option></select></div>
-                    <div className="input-group"><label>Or paste URL</label><input className="input" placeholder="https://..." value={resourceForm.url} onChange={e => setResourceForm({ ...resourceForm, url: e.target.value })} /></div>
+                    <div className="input-group"><label>Type</label><select className="select" value={resourceForm.type} onChange={e => setResourceForm({ ...resourceForm, type: e.target.value, url: '' })}><option value="pdf">PDF</option><option value="video">Video</option><option value="doc">Doc</option></select></div>
+                    {resourceForm.type !== 'video' && (
+                        <div className="input-group"><label>Upload File ({resourceForm.type === 'pdf' ? 'PDF' : 'Doc'})</label><input type="file" accept={resourceForm.type === 'pdf' ? '.pdf' : '.doc,.docx'} className="input" onChange={handleFileUpload} /></div>
+                    )}
+                    <div className="input-group"><label>Resource Name</label><input className="input" placeholder={resourceForm.type === 'video' ? 'e.g., ML Lecture 5 - Neural Networks' : 'Resource name'} value={resourceForm.name} onChange={e => setResourceForm({ ...resourceForm, name: e.target.value })} /></div>
+                    <div className="input-group">
+                        <label>{resourceForm.type === 'video' ? 'Video URL *' : 'Or paste URL'}</label>
+                        <input className="input" placeholder={resourceForm.type === 'video' ? 'https://youtube.com/watch?v=... or Google Drive link' : 'https://...'} value={resourceForm.url} onChange={e => setResourceForm({ ...resourceForm, url: e.target.value })} />
+                        {resourceForm.type === 'video' && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                ✨ Supports YouTube, Google Drive, Vimeo & Loom — opens in fullscreen viewer
+                            </span>
+                        )}
+                    </div>
                 </div>
             </Modal>
 

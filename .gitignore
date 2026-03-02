@@ -26,5 +26,5 @@ dist-ssr
 *.db
 *.db-shm
 .env
-.env.example
-*.env.example
+!.env.example
+!server/.env.example

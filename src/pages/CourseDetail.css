@@ -90,7 +90,8 @@
 }
 
 .topic-node:hover {
-    border-color: var(--border-color);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .topic-row,

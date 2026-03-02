@@ -1,92 +1,295 @@
-# TENX Track Learning App - Deployment Guide
+# TENX Track Learning — Deployment Guide
 
-This guide covers the necessary steps to deploy the application (Frontend + Backend) and properly configure the environment parameters in a production setting.
-
-## Architecture
-- **Frontend**: React (Vite)
-- **Backend**: Node.js + Express
-- **Database**: Supabase (PostgreSQL with Auth and JSONB Data Storage)
-- **External APIs**: Groq AI (Quotes), GNews (Tech News)
+> Production deployment instructions for Frontend and Backend, separately.
 
 ---
 
-## 1. Secrets & Environment Variables
+## 📋 Prerequisites
 
-**CRITICAL:** Do NOT hardcode secrets in the source code. All secrets should be injected via environment variables on your hosting platforms (e.g., Render, Vercel, Netlify).
+- **Node.js** v18+ and **npm** v9+
+- A **Supabase** project with authentication enabled
+- A **Groq AI** API key (for AI quotes/facts)
+- A **GNews** API key (for technology news)
 
-### Backend (`server/.env`)
-Required variables for your production Node.js environment:
-```env
-# Server
-PORT=5005
-FRONTEND_URL=https://your-frontend-domain.com
+---
 
-# Supabase (Database & Auth)
-SUPABASE_URL=https://[YOUR_PROJECT_ID].supabase.co
-SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
+## 🖥️ FRONTEND DEPLOYMENT
 
-# External APIs
-GROQ_API_KEY=[YOUR_GROQ_API_KEY]
-GNEWS_API_KEY=[YOUR_GNEWS_API_KEY]
+### Option A: Vercel (Recommended)
 
-# Application Branding (Optional)
-WEBSITE_NAME="TENX Track Learning"
-LOGO_TEXT="TENX Industries"
+#### Steps:
+
+1. **Push code to GitHub**
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git remote add origin https://github.com/YOUR_USERNAME/tenx-frontend.git
+   git push -u origin main
+   ```
+
+2. **Connect to Vercel**
+   - Go to [vercel.com](https://vercel.com) → New Project
+   - Import your GitHub repository
+   - Framework: **Vite**
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+
+3. **Set Environment Variables** in Vercel Dashboard → Settings → Environment Variables:
+   ```
+   VITE_API_URL=https://your-backend-url.onrender.com
+   VITE_FRONTEND_URL=https://your-app.vercel.app
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Deploy** — Vercel auto-deploys on every push to `main`.
+
+#### Custom Domain:
+- Vercel → Project → Settings → Domains → Add your domain
+- Update DNS CNAME to point to `cname.vercel-dns.com`
+
+---
+
+### Option B: Netlify
+
+1. **Build locally:**
+   ```bash
+   npm run build
+   ```
+
+2. **Deploy to Netlify:**
+   - Drag the `dist/` folder to [app.netlify.com](https://app.netlify.com)
+   - Or connect GitHub for auto-deploy
+
+3. **Set Environment Variables** in Netlify → Site → Build & Deploy → Environment:
+   ```
+   VITE_API_URL=https://your-backend-url.onrender.com
+   VITE_FRONTEND_URL=https://your-app.netlify.app
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Create `public/_redirects`** for SPA routing:
+   ```
+   /*    /index.html   200
+   ```
+
+---
+
+### Option C: Self-Hosted (Nginx)
+
+1. **Build the app:**
+   ```bash
+   npm run build
+   ```
+
+2. **Copy `dist/` to your server:**
+   ```bash
+   scp -r dist/ user@server:/var/www/tenx/
+   ```
+
+3. **Nginx Configuration:**
+   ```nginx
+   server {
+       listen 80;
+       server_name yourdomain.com;
+       root /var/www/tenx;
+       index index.html;
+
+       location / {
+           try_files $uri $uri/ /index.html;
+       }
+
+       location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+           expires 1y;
+           add_header Cache-Control "public, immutable";
+       }
+   }
+   ```
+
+---
+
+## ⚡ BACKEND DEPLOYMENT
+
+### Option A: Render (Recommended)
+
+#### Steps:
+
+1. **Push `server/` to a separate GitHub repo** (or use monorepo):
+   ```bash
+   cd server
+   git init
+   git add .
+   git commit -m "Backend initial commit"
+   git remote add origin https://github.com/YOUR_USERNAME/tenx-backend.git
+   git push -u origin main
+   ```
+
+2. **Create Web Service on Render:**
+   - Go to [render.com](https://render.com) → New → Web Service
+   - Connect your GitHub repository
+   - **Build Command:** `npm install`
+   - **Start Command:** `node index.js`
+   - **Environment:** Node
+
+3. **Set Environment Variables** in Render Dashboard:
+   ```
+   PORT=5005
+   FRONTEND_URL=https://your-app.vercel.app
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_KEY=your_supabase_service_key
+   GROQ_API_KEY=your_groq_api_key
+   GROQ_MODEL=openai/gpt-oss-120b
+   GNEWS_API_KEY=your_gnews_api_key
+   WEBSITE_NAME=TENX Track Learning
+   LOGO_TEXT=TENX Track Learning
+   ```
+
+4. **Deploy** — Render auto-deploys on push.
+
+---
+
+### Option B: Railway
+
+1. **Connect GitHub repo** at [railway.app](https://railway.app)
+2. Railway auto-detects Node.js
+3. Set environment variables (same as Render)
+4. Deploy — Railway handles port binding automatically
+
+---
+
+### Option C: Self-Hosted (VPS with PM2)
+
+1. **Install PM2:**
+   ```bash
+   npm install -g pm2
+   ```
+
+2. **Upload server code to your VPS:**
+   ```bash
+   scp -r server/ user@server:/opt/tenx-api/
+   ```
+
+3. **Install dependencies on server:**
+   ```bash
+   cd /opt/tenx-api
+   npm install
+   ```
+
+4. **Create `.env` file** with all required environment variables.
+
+5. **Start with PM2:**
+   ```bash
+   pm2 start index.js --name "tenx-api"
+   pm2 save
+   pm2 startup
+   ```
+
+6. **Nginx Reverse Proxy:**
+   ```nginx
+   server {
+       listen 80;
+       server_name api.yourdomain.com;
+
+       location / {
+           proxy_pass http://localhost:5005;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+
+---
+
+## 🔐 Security Checklist
+
+- [ ] **Never commit `.env` files** — ensure `.gitignore` includes `.env`
+- [ ] **Use HTTPS** for both frontend and backend in production
+- [ ] **Update CORS origins** in `server/index.js` to match your production URLs
+- [ ] **Rotate API keys** if they were exposed in version control
+- [ ] **Set Supabase RLS policies** for data security
+- [ ] **Rate limit** the API endpoints in production
+
+---
+
+## 🔗 Post-Deployment
+
+### Update CORS in Backend
+
+After deploying, update the CORS whitelist in `server/index.js`:
+```javascript
+app.use(cors({
+    origin: [
+        'https://your-app.vercel.app',
+        'https://yourdomain.com',
+    ],
+    credentials: true,
+}));
 ```
 
-### Frontend (`.env` or embedded)
-The frontend requires the backend URL to function. In production, configure this in your hosting provider's build settings.
-```env
-# For Vite, prefix with VITE_
-VITE_BACKEND_URL=https://your-backend-domain.onrender.com
+### Update Frontend Config
+
+Set the production backend URL:
 ```
-*Note: The frontend code in `config.js` will automatically fallback to the specified VITE_BACKEND_URL or a production default if explicitly coded.*
+VITE_API_URL=https://your-backend-url.onrender.com
+```
+
+### Verify Health
+
+After deployment, check the backend health endpoint:
+```bash
+curl https://your-backend-url.onrender.com/api/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "services": {
+    "supabase": true,
+    "groq": true,
+    "gnews": true
+  }
+}
+```
 
 ---
 
-## 2. Deploying the Backend (e.g., Render, Heroku)
+## 📊 Supabase Database Setup
 
-1. Connect your repository to your backend hosting platform.
-2. Set the Base Directory to `/server` (if supported) or define the pre-build command to `cd server && npm install`.
-3. Set the **Build Command**: `npm install`
-4. Set the **Start Command**: `node index.js`
-5. Map all the **Backend Environment Variables** specified above in the service settings.
-6. Verify the deployment by accessing `https://your-backend-domain.com/` which should return the TENX API Interactive Test UI.
+If setting up a fresh Supabase instance, run the schema SQL:
 
----
-
-## 3. Deploying the Frontend (e.g., Vercel, Netlify)
-
-1. Connect the root directory of the repository to your frontend hosting platform.
-2. Ensure the Framework Preset is set to **Vite**.
-3. Set the **Build Command**: `npm run build`
-4. Set the **Output Directory**: `dist`
-5. Inject the `VITE_BACKEND_URL` environment variable pointing to your deployed backend URL.
-6. **Crucial Routing Step**: If deploying to Vercel/Netlify/Surge, you MUST configure rewrites for SPA routing. 
-   - **Vercel** (`vercel.json`):
-     ```json
-     {
-       "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-     }
-     ```
-   - **Netlify** (`public/_redirects`):
-     ```
-     /*  /index.html  200
-     ```
+1. Go to Supabase Dashboard → SQL Editor
+2. Execute `server/supabase-schema-v3.sql`
+3. This creates all required tables:
+   - `profiles` — User profiles with theme preferences
+   - `user_data_tasks` — Daily tasks (JSONB)
+   - `user_data_courses` — Courses (JSONB)
+   - `user_data_papers` — Research papers (JSONB)
+   - `user_data_sessions` — Study sessions (JSONB)
+   - `user_data_bookmarks` — Bookmarks (JSONB)
+   - `user_data_activity` — Activity log (JSONB)
+   - `user_data_streak` — Streak data (JSONB)
+   - `user_data_profile` — Profile settings (JSONB)
+   - `user_data_newsread` — Read articles (JSONB)
+   - `user_data_resources` — Resources (JSONB)
 
 ---
 
-## 4. Post-Deployment Checks (QA)
+## 🚀 Quick Deploy Summary
 
-After deployment, perform the following validation:
+| Component  | Recommended | Build Command     | Start Command  |
+|-----------|-------------|-------------------|----------------|
+| Frontend  | Vercel      | `npm run build`   | (static)       |
+| Backend   | Render      | `npm install`     | `node index.js`|
+| Database  | Supabase    | (managed)         | (managed)      |
 
-*   **API Health**: Check `${BACKEND_URL}/api/health` to ensure Supabase, Groq, and GNews connections are active.
-*   **Authentication Flow**: Perform a test user Registration ➔ Login ➔ Logout.
-*   **Cross-Browser Synchronization**: Open the dashboard in an Incognito window and normal window simultaneously to verify the Supabase JSON database properly restores lists upon a refresh.
-*   **Video Embedding Check**: In a Course Topic, add a Resource of type `Video` with a standard YouTube URL format to confirm the browser doesn't block the standard IFrames.
+---
 
-## 5. Security & Maintenance
-
-1. Rotate your Supabase Service Keys/API Keys on a monthly/quarterly schedule.
-2. Use strong passwords for user testing accounts (like `Hiten@12345` was used initially, consider deleting or isolating testing accounts on Production DB).
-3. The GNews and Groq tiers might be rate-limited on free versions. The backend dynamically falls back to an internal cache or hardcoded quotes to guarantee stability if limits are hit.
+*© 2026 TENX Industries. All rights reserved.*

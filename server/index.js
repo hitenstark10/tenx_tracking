@@ -54,8 +54,18 @@ const QUOTE_CATEGORIES = [
 ];
 
 // ─── Quote history to prevent repetition ───
-const quoteHistory = []; // rolling buffer of last 20 quotes
-const MAX_QUOTE_HISTORY = 20;
+const quoteHistory = []; // rolling buffer of last 50 quotes
+const MAX_QUOTE_HISTORY = 50;
+
+// Similarity check: if 60%+ words overlap, consider it a duplicate
+function isQuoteSimilar(newText, existingText) {
+    const wordsA = new Set(newText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const wordsB = new Set(existingText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    if (wordsA.size === 0 || wordsB.size === 0) return false;
+    let overlap = 0;
+    wordsA.forEach(w => { if (wordsB.has(w)) overlap++; });
+    return overlap / Math.min(wordsA.size, wordsB.size) > 0.6;
+}
 
 async function generateQuoteFromGroq() {
     if (!GROQ_API_KEY) return null;
@@ -123,14 +133,15 @@ async function generateQuoteFromGroq() {
 
 // GET /api/quotes/random — Generate a fresh quote every call
 app.get('/api/quotes/random', async (_req, res) => {
-    // Try up to 3 times to get a unique quote
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Try up to 5 times to get a unique quote
+    for (let attempt = 0; attempt < 5; attempt++) {
         try {
             const quote = await generateQuoteFromGroq();
             if (quote && quote.text) {
-                // Check against history for uniqueness
+                // Check against history for uniqueness (exact + similarity)
                 const isDuplicate = quoteHistory.some(h =>
-                    h.toLowerCase().trim() === quote.text.toLowerCase().trim()
+                    h.toLowerCase().trim() === quote.text.toLowerCase().trim() ||
+                    isQuoteSimilar(quote.text, h)
                 );
                 if (!isDuplicate) {
                     // Add to history (rolling)
@@ -139,7 +150,7 @@ app.get('/api/quotes/random', async (_req, res) => {
                     return res.json(quote);
                 }
                 // If duplicate and last attempt, still return it
-                if (attempt === 2) return res.json(quote);
+                if (attempt === 4) return res.json(quote);
                 continue; // Try again for unique
             }
         } catch (err) {
@@ -190,28 +201,23 @@ function categorizeArticle(text) {
 let newsCache = { articles: [], query: '', timestamp: 0 };
 const NEWS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min cache
 
-// GET /api/news — Fetch technology news from GNews
+// GET /api/news — Fetch TECHNOLOGY news from GNews (top-headlines, technology category ONLY)
 app.get('/api/news', async (req, res) => {
     if (!GNEWS_API_KEY) {
         return res.json({ articles: [], error: 'GNews API key not configured' });
     }
 
-    // Use search queries for variety based on optional keyword param
-    const keywords = ['artificial intelligence', 'machine learning', 'deep learning', 'data science', 'neural network', 'generative AI', 'AI research', 'large language models'];
-    const queryParam = req.query.q;
-    const query = queryParam || keywords[Math.floor(Math.random() * keywords.length)];
-
-    // Check cache: if same query within TTL, vary the result order
-    if (!queryParam && newsCache.articles.length > 0 && (Date.now() - newsCache.timestamp) < NEWS_CACHE_TTL_MS) {
-        // Shuffle cached articles for variety
+    // Check cache: serve cached if within TTL (shuffle for variety)
+    if (newsCache.articles.length > 0 && (Date.now() - newsCache.timestamp) < NEWS_CACHE_TTL_MS) {
         const shuffled = [...newsCache.articles].sort(() => Math.random() - 0.5);
-        return res.json({ articles: shuffled, query: newsCache.query, timestamp: Date.now(), cached: true });
+        return res.json({ articles: shuffled, query: 'technology', timestamp: Date.now(), cached: true });
     }
 
     try {
         const fetch = (await import('node-fetch')).default;
 
-        const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=10&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
+        // Use GNews top-headlines with topic=technology — ONLY tech news
+        const gnewsUrl = `https://gnews.io/api/v4/top-headlines?topic=technology&lang=en&max=10&apikey=${GNEWS_API_KEY}`;
         const gnewsRes = await fetch(gnewsUrl, { signal: AbortSignal.timeout(10000) });
 
         if (!gnewsRes.ok) {
@@ -234,18 +240,17 @@ app.get('/api/news', async (req, res) => {
             category: categorizeArticle((a.title || '') + ' ' + (a.description || '')),
         }));
 
-        // Merge with previous cached to avoid losing articles
+        // Merge with previous cached to avoid losing articles (deduplicate by title)
         const existingTitles = new Set(newsCache.articles.map(a => a.title));
         const newUnique = articles.filter(a => !existingTitles.has(a.title));
-        const merged = [...newsCache.articles, ...newUnique].slice(-50); // Keep last 50 articles
+        const merged = [...newsCache.articles, ...newUnique].slice(-50);
 
         // Update cache
-        newsCache = { articles: merged, query, timestamp: Date.now() };
+        newsCache = { articles: merged, query: 'technology', timestamp: Date.now() };
 
-        res.json({ articles, query, timestamp: Date.now() });
+        res.json({ articles, query: 'technology', timestamp: Date.now() });
     } catch (err) {
         console.warn('GNews fetch error:', err.message);
-        // On error, return cached if available
         if (newsCache.articles.length > 0) {
             return res.json({ articles: newsCache.articles, query: newsCache.query, timestamp: Date.now(), cached: true });
         }

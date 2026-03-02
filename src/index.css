@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    TenX Design System — CSS Custom Properties & Globals
+   Unified Dark Theme (Matching Landing Page)
    ═══════════════════════════════════════════════════════ */
 
 *,
@@ -10,7 +11,7 @@
   box-sizing: border-box;
 }
 
-/* ─── Dark Theme (Default) ─── */
+/* ─── Dark Theme (Only Theme) ─── */
 :root,
 [data-theme="dark"] {
   --bg-primary: #060811;
@@ -91,77 +92,6 @@
   --heatmap-5: #ef4444;
 }
 
-/* ─── Light Theme ─── */
-[data-theme="light"] {
-  --bg-primary: #f4f6fb;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #eef1f8;
-  --bg-elevated: #ffffff;
-  --bg-hover: #e8ecf4;
-  --bg-input: #f0f3fa;
-  --bg-glass: rgba(255, 255, 255, 0.8);
-  --bg-subtle: #f7f9fc;
-
-  --text-primary: #1a1d2e;
-  --text-secondary: #5a6178;
-  --text-tertiary: #8b92a8;
-  --text-inverse: #f0f2f8;
-
-  --accent-primary: #6366f1;
-  --accent-primary-light: #818cf8;
-  --accent-primary-dark: #4f46e5;
-  --accent-secondary: #8b5cf6;
-  --accent-tertiary: #0891b2;
-  --accent-gradient: linear-gradient(135deg, #4f46e5, #7c3aed, #9333ea);
-  --accent-gradient-hover: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
-  --accent-glow: rgba(99, 102, 241, 0.15);
-
-  --border-color: #e0e4ef;
-  --border-subtle: #eaecf4;
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.1);
-
-  --priority-high: #ef4444;
-  --priority-high-bg: rgba(239, 68, 68, 0.08);
-  --priority-medium: #f59e0b;
-  --priority-medium-bg: rgba(245, 158, 11, 0.08);
-  --priority-low: #10b981;
-  --priority-low-bg: rgba(16, 185, 129, 0.08);
-
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.08);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.08);
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.08);
-  --info: #3b82f6;
-  --info-bg: rgba(59, 130, 246, 0.08);
-
-  --chart-1: #6366f1;
-  --chart-2: #8b5cf6;
-  --chart-3: #ec4899;
-  --chart-4: #10b981;
-  --chart-5: #f59e0b;
-  --chart-6: #3b82f6;
-  --chart-grid: rgba(0, 0, 0, 0.06);
-  --chart-text: #8b92a8;
-
-  --scrollbar-track: #f0f2f8;
-  --scrollbar-thumb: #d0d4e0;
-
-  --heatmap-0: #f0f0f0;
-  --heatmap-1: #fecaca;
-  --heatmap-2: #f87171;
-  --heatmap-3: #ef4444;
-  --heatmap-4: #dc2626;
-  --heatmap-5: #b91c1c;
-}
-
 /* ─── Base ─── */
 html {
   font-size: 16px;
@@ -176,7 +106,6 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -200,6 +129,17 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: var(--accent-primary);
+  color: #fff;
 }
 
 /* ─── Typography ─── */
@@ -242,7 +182,9 @@ a:hover {
   color: var(--accent-primary-light);
 }
 
-/* ─── Animations ─── */
+/* ═══════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════ */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -407,6 +349,107 @@ a:hover {
   }
 }
 
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeletonPulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.7;
+  }
+}
+
+@keyframes fabPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+@keyframes gradientBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Animation Classes */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
@@ -431,7 +474,9 @@ a:hover {
   animation: float 3s ease-in-out infinite;
 }
 
-/* ─── Utility Classes ─── */
+/* ═══════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════ */
 .flex {
   display: flex;
 }
@@ -528,7 +573,9 @@ a:hover {
   gap: 16px;
 }
 
-/* ─── Buttons ─── */
+/* ═══════════════════════════════════════════════════════
+   Buttons — Modern with Ripple & Hover Effects
+   ═══════════════════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -541,10 +588,12 @@ a:hover {
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   text-decoration: none;
   outline: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn:active {
@@ -556,6 +605,25 @@ a:hover {
   outline-offset: 2px;
 }
 
+/* Ripple effect */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+}
+
+.btn:active::after {
+  width: 200px;
+  height: 200px;
+}
+
 .btn-primary {
   background: var(--accent-gradient);
   color: #fff;
@@ -565,7 +633,7 @@ a:hover {
 .btn-primary:hover {
   background: var(--accent-gradient-hover);
   box-shadow: var(--shadow-md), 0 0 24px var(--accent-glow);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
@@ -577,6 +645,7 @@ a:hover {
 .btn-secondary:hover {
   background: var(--bg-hover);
   border-color: var(--accent-primary);
+  transform: translateY(-1px);
 }
 
 .btn-ghost {
@@ -598,6 +667,7 @@ a:hover {
 .btn-danger:hover {
   background: var(--danger);
   color: #fff;
+  transform: translateY(-1px);
 }
 
 .btn-sm {
@@ -619,7 +689,9 @@ a:hover {
   padding: 10px;
 }
 
-/* ─── Inputs ─── */
+/* ═══════════════════════════════════════════════════════
+   Inputs — Clean Focus Effects
+   ═══════════════════════════════════════════════════════ */
 .input,
 .select,
 .textarea {
@@ -639,8 +711,9 @@ a:hover {
 .select:focus,
 .textarea:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 12px rgba(0, 0, 0, 0.1);
   background: var(--bg-primary);
+  transform: translateY(-1px);
 }
 
 .input::placeholder,
@@ -680,38 +753,64 @@ a:hover {
   gap: 12px;
 }
 
-/* ─── Cards ─── */
+/* ═══════════════════════════════════════════════════════
+   Cards — Glassmorphism + 3D Hover
+   ═══════════════════════════════════════════════════════ */
 .card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 20px;
-  transition: all 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-color);
+  box-shadow: var(--shadow-md), 0 0 30px rgba(99, 102, 241, 0.04);
 }
 
 .card-glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.card-glass:hover {
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .card-interactive {
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-interactive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.03) 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
   border-color: var(--accent-primary);
 }
 
-/* ─── Summary Cards ─── */
+.card-interactive:hover::after {
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Summary/Stat Cards
+   ═══════════════════════════════════════════════════════ */
 .stat-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -720,7 +819,7 @@ a:hover {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -742,8 +841,8 @@ a:hover {
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
 }
 
 .stat-card .stat-icon {
@@ -775,7 +874,9 @@ a:hover {
   animation: countUp 0.5s ease-out;
 }
 
-/* ─── Badges ─── */
+/* ═══════════════════════════════════════════════════════
+   Badges
+   ═══════════════════════════════════════════════════════ */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -786,6 +887,11 @@ a:hover {
   border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.badge:hover {
+  transform: translateY(-1px) scale(1.02);
 }
 
 .badge-high {
@@ -813,7 +919,9 @@ a:hover {
   color: var(--info);
 }
 
-/* ─── Progress Bar ─── */
+/* ═══════════════════════════════════════════════════════
+   Progress Bar with Shimmer
+   ═══════════════════════════════════════════════════════ */
 .progress-bar {
   width: 100%;
   height: 6px;
@@ -827,9 +935,24 @@ a:hover {
   border-radius: var(--radius-full);
   background: var(--accent-gradient);
   transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ─── Checkbox ─── */
+.progress-bar .progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 2s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Checkbox
+   ═══════════════════════════════════════════════════════ */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
@@ -860,7 +983,9 @@ a:hover {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-/* ─── Modal ─── */
+/* ═══════════════════════════════════════════════════════
+   Modal
+   ═══════════════════════════════════════════════════════ */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -882,7 +1007,7 @@ a:hover {
   max-width: 520px;
   max-height: 85vh;
   overflow-y: auto;
-  animation: modalContentIn 0.3s ease;
+  animation: modalSlideUp 0.25s ease-out;
   box-shadow: var(--shadow-xl);
 }
 
@@ -919,7 +1044,9 @@ a:hover {
   border-top: 1px solid var(--border-color);
 }
 
-/* ─── Tabs ─── */
+/* ═══════════════════════════════════════════════════════
+   Tabs
+   ═══════════════════════════════════════════════════════ */
 .tabs {
   display: flex;
   gap: 4px;
@@ -938,6 +1065,8 @@ a:hover {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .tab:hover {
@@ -948,10 +1077,12 @@ a:hover {
 .tab.active {
   color: var(--text-primary);
   background: var(--bg-secondary);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-xs), 0 0 8px var(--accent-glow);
 }
 
-/* ─── Search ─── */
+/* ═══════════════════════════════════════════════════════
+   Search
+   ═══════════════════════════════════════════════════════ */
 .search-wrapper {
   position: relative;
   flex: 1;
@@ -971,7 +1102,9 @@ a:hover {
   padding-left: 38px;
 }
 
-/* ─── Empty State ─── */
+/* ═══════════════════════════════════════════════════════
+   Empty State
+   ═══════════════════════════════════════════════════════ */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -985,6 +1118,7 @@ a:hover {
   color: var(--text-tertiary);
   margin-bottom: 16px;
   opacity: 0.5;
+  animation: breathe 3s ease-in-out infinite;
 }
 
 .empty-state h4 {
@@ -998,7 +1132,9 @@ a:hover {
   max-width: 320px;
 }
 
-/* ─── Tooltip ─── */
+/* ═══════════════════════════════════════════════════════
+   Tooltip
+   ═══════════════════════════════════════════════════════ */
 .tooltip-wrapper {
   position: relative;
 }
@@ -1025,7 +1161,9 @@ a:hover {
   transform: translateX(-50%) translateY(-8px);
 }
 
-/* ─── Page Layout ─── */
+/* ═══════════════════════════════════════════════════════
+   Page Layout
+   ═══════════════════════════════════════════════════════ */
 .page-header {
   display: flex;
   align-items: center;
@@ -1040,6 +1178,10 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 12px;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .page-header h1 svg {
@@ -1058,6 +1200,16 @@ a:hover {
   gap: 10px;
   margin-bottom: 24px;
   flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s;
+}
+
+.filter-bar:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .section-title {
@@ -1076,7 +1228,9 @@ a:hover {
   height: 18px;
 }
 
-/* ─── Charts ─── */
+/* ═══════════════════════════════════════════════════════
+   Charts
+   ═══════════════════════════════════════════════════════ */
 .chart-container {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -1098,19 +1252,9 @@ a:hover {
   min-height: 0;
 }
 
-/* ─── Interactive Card ─── */
-.card-interactive {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-}
-
-.card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--accent-primary);
-}
-
-/* ─── Calendar / Heatmap ─── */
+/* ═══════════════════════════════════════════════════════
+   Calendar / Heatmap
+   ═══════════════════════════════════════════════════════ */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1187,7 +1331,163 @@ a:hover {
   animation: streakFire 1s ease-in-out infinite;
 }
 
-/* ─── Responsive ─── */
+/* ═══════════════════════════════════════════════════════
+   Staggered Page Animations
+   ═══════════════════════════════════════════════════════ */
+.dashboard-page>*,
+.daily-tasks-page>*,
+.courses-page>*,
+.profile-page>*,
+.trending-page>*,
+.course-detail>*,
+.research-page>* {
+  animation: staggerFadeIn 0.4s ease-out backwards;
+}
+
+.dashboard-page>*:nth-child(1),
+.daily-tasks-page>*:nth-child(1),
+.courses-page>*:nth-child(1),
+.profile-page>*:nth-child(1),
+.trending-page>*:nth-child(1),
+.course-detail>*:nth-child(1),
+.research-page>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.dashboard-page>*:nth-child(2),
+.daily-tasks-page>*:nth-child(2),
+.courses-page>*:nth-child(2),
+.profile-page>*:nth-child(2),
+.trending-page>*:nth-child(2),
+.course-detail>*:nth-child(2),
+.research-page>*:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.dashboard-page>*:nth-child(3),
+.daily-tasks-page>*:nth-child(3),
+.courses-page>*:nth-child(3),
+.profile-page>*:nth-child(3),
+.trending-page>*:nth-child(3),
+.course-detail>*:nth-child(3),
+.research-page>*:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.dashboard-page>*:nth-child(4),
+.daily-tasks-page>*:nth-child(4),
+.courses-page>*:nth-child(4),
+.profile-page>*:nth-child(4),
+.trending-page>*:nth-child(4),
+.course-detail>*:nth-child(4),
+.research-page>*:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.dashboard-page>*:nth-child(5) {
+  animation-delay: 240ms;
+}
+
+/* ─── News Cards Stagger ─── */
+.news-card {
+  animation: cardSlideUp 0.4s ease-out backwards;
+}
+
+.news-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.news-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.news-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.news-card:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.news-card:nth-child(5) {
+  animation-delay: 240ms;
+}
+
+.news-card:nth-child(6) {
+  animation-delay: 300ms;
+}
+
+.news-card:nth-child(7) {
+  animation-delay: 360ms;
+}
+
+.news-card:nth-child(8) {
+  animation-delay: 420ms;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Nav Item Hover Glow
+   ═══════════════════════════════════════════════════════ */
+.nav-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  transition: left 0.5s ease;
+}
+
+.nav-item:hover::before {
+  left: 100%;
+}
+
+/* ─── Topic Node Hover ─── */
+.topic-node {
+  transition: all 0.25s ease;
+}
+
+.topic-node:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+/* ─── Page Content Transition ─── */
+.main-content {
+  animation: pageEnter 0.35s ease-out;
+}
+
+/* ─── Loading Skeleton ─── */
+.skeleton {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* ─── Toast/Message Slide In ─── */
+.profile-msg {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* ─── Image Lazy Load ─── */
+.news-card-image img,
+.profile-avatar-img {
+  transition: opacity 0.3s ease, transform 0.5s ease;
+}
+
+.news-card-image:hover img {
+  transform: scale(1.03);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════════ */
 @media (max-width: 1200px) {
   .grid-4 {
     grid-template-columns: repeat(3, 1fr);
@@ -1276,462 +1576,536 @@ a:hover {
 }
 
 /* ═══════════════════════════════════════════════════════
-   Modern UI Enhancements — Glassmorphism, Micro-Animations, Effects
+   MODERN EFFECTS — Premium Interactive Experience
+   Card shimmer, hover glow, button ripple, scroll reveal
    ═══════════════════════════════════════════════════════ */
 
-/* ─── Enhanced Card Hover ─── */
+/* ─── Card Hover Lift & Glow ─── */
 .card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, box-shadow;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-md), 0 0 30px rgba(99, 102, 241, 0.04);
-}
-
-/* ─── Glassmorphism Overlay ─── */
-.card-glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.card-glass:hover {
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-/* ─── Staggered Fade-In for Children ─── */
-@keyframes staggerFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dashboard-page>*,
-.daily-tasks-page>*,
-.courses-page>*,
-.profile-page>* {
-  animation: staggerFadeIn 0.4s ease-out backwards;
-}
-
-.dashboard-page>*:nth-child(1) {
-  animation-delay: 0ms;
-}
-
-.dashboard-page>*:nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.dashboard-page>*:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.dashboard-page>*:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-.dashboard-page>*:nth-child(5) {
-  animation-delay: 240ms;
-}
-
-.daily-tasks-page>*:nth-child(1) {
-  animation-delay: 0ms;
-}
-
-.daily-tasks-page>*:nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.daily-tasks-page>*:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.daily-tasks-page>*:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-.courses-page>*:nth-child(1) {
-  animation-delay: 0ms;
-}
-
-.courses-page>*:nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.courses-page>*:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.courses-page>*:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-/* ─── Button Press Animation ─── */
-.btn {
   position: relative;
   overflow: hidden;
 }
 
-.btn::after {
+.card::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: width 0.4s, height 0.4s;
+  inset: 0;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(99, 102, 241, 0.06), transparent 40%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.btn:active::after {
-  width: 200px;
-  height: 200px;
+.card:hover::after {
+  opacity: 1;
 }
 
-/* ─── Enhanced Input Focus ─── */
+/* ─── Card Shine Sweep on Hover ─── */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  transform: skewX(-25deg);
+  transition: left 0.6s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.card:hover::before {
+  left: 125%;
+}
+
+/* ─── Enhanced Button Press Effect ─── */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+
+.btn:hover {
+  filter: brightness(1.08);
+}
+
+.btn:active {
+  transform: scale(0.95) !important;
+  filter: brightness(0.95);
+  transition: transform 0.1s ease;
+}
+
+.btn-primary {
+  position: relative;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: var(--accent-gradient);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  filter: blur(12px);
+  transition: opacity 0.3s ease;
+}
+
+.btn-primary:hover::before {
+  opacity: 0.5;
+}
+
+/* ─── Magnetic Glow on Interactive Cards ─── */
+.card-interactive {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-interactive:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 30px rgba(99, 102, 241, 0.12),
+    0 0 60px rgba(99, 102, 241, 0.06);
+  border-color: var(--accent-primary);
+}
+
+/* ─── Badge Micro-bounce ─── */
+.badge {
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.badge:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+/* ─── Input Focus Glow Ring ─── */
 .input:focus,
 .select:focus,
 .textarea:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 0 0 3px var(--accent-glow),
+    0 0 20px rgba(99, 102, 241, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+  background: var(--bg-primary);
   transform: translateY(-1px);
 }
 
-/* ─── Interactive Card Lift ─── */
-.card-interactive {
-  position: relative;
-  overflow: hidden;
+/* ─── Checkbox Bounce ─── */
+.checkbox {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.card-interactive::after {
+.checkbox.checked {
+  animation: checkBounce 0.3s ease;
+}
+
+@keyframes checkBounce {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ─── Progress Bar Glow ─── */
+.progress-bar .progress-fill {
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+}
+
+/* ─── Stat Card Number Counter Effect ─── */
+.stat-card .stat-value,
+.dash-stat-value,
+.dash-mini-value {
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover .stat-value,
+.dash-mini-card:hover .dash-mini-value {
+  transform: scale(1.05);
+  color: var(--accent-primary-light);
+}
+
+/* ─── Filter Bar Glass Effect ─── */
+.filter-bar {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── Modal glassmorphism enhancement ─── */
+.modal-backdrop {
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+}
+
+.modal-content {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Page Header Gradient Underline ─── */
+.page-header h1 {
+  position: relative;
+}
+
+.page-header h1::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  transition: width 0.4s ease;
+  border-radius: 2px;
+}
+
+.page-header:hover h1::after {
+  width: 60px;
+}
+
+/* ─── Smooth Scroll Behavior ─── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Task Card Completion Celebration ─── */
+.dt-task-card.done,
+.topic-name.done,
+.subtopic-name.done {
+  position: relative;
+}
+
+.dt-task-card.done::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.03) 100%);
-  opacity: 0;
-  transition: opacity 0.3s;
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.03), transparent);
   pointer-events: none;
 }
 
-.card-interactive:hover::after {
-  opacity: 1;
+/* ─── Sidebar Nav Hover Slide ─── */
+.nav-item {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─── Smooth Page Transitions ─── */
-.page-header h1 {
-  background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.nav-item:hover {
+  transform: translateX(4px);
 }
 
-/* ─── Badge Micro-Bounce ─── */
-.badge {
-  transition: all 0.2s ease;
-}
-
-.badge:hover {
-  transform: translateY(-1px) scale(1.02);
-}
-
-/* ─── Progress Bar Shimmer ─── */
-.progress-bar .progress-fill {
+.nav-item.active {
   position: relative;
-  overflow: hidden;
 }
 
-.progress-bar .progress-fill::after {
+.nav-item.active::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  animation: shimmer 2s infinite;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--accent-gradient);
+  border-radius: 3px 0 0 3px;
 }
 
-/* ─── Tab Transition Enhancement ─── */
-.tab {
-  position: relative;
+/* ─── Heatmap Cell Pulse on Hover ─── */
+.heatmap-cell:not(.empty):hover {
+  animation: heatPulse 0.3s ease;
+}
+
+@keyframes heatPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+/* ─── Chart Card Glass ─── */
+.dash-charts-unified,
+.dt-donut-card,
+.dt-bar-card,
+.dt-heatmap-card,
+.co-donut-card,
+.co-bar-card,
+.co-heatmap-card {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ─── News Card Image Overlay Gradient ─── */
+.news-card-image::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.4));
+  pointer-events: none;
   z-index: 1;
 }
 
-.tab.active {
-  box-shadow: var(--shadow-xs), 0 0 8px var(--accent-glow);
+/* ─── Quote Card Subtle Breathe ─── */
+.dash-quote-hero {
+  animation: subtleBreath 4s ease-in-out infinite;
 }
 
-/* ─── Scrollbar Enhancement ─── */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+@keyframes subtleBreath {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(99, 102, 241, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.08);
+  }
 }
 
-/* ─── Enhanced Filter Bar ─── */
-.filter-bar {
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  transition: all 0.2s;
+/* ─── Countdown Number Glow ─── */
+.dash-cd-num {
+  text-shadow: 0 0 20px rgba(129, 140, 248, 0.3);
 }
 
-.filter-bar:focus-within {
+/* ─── Empty State Float Animation ─── */
+.empty-state svg {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ─── Responsive Chart Container ─── */
+.dt-donut-card canvas,
+.dt-bar-card canvas,
+.co-donut-card canvas,
+.co-bar-card canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* ─── Scroll Reveal Utility (JS assigns .revealed) ─── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Hover Border Gradient Animation ─── */
+@keyframes borderGlow {
+
+  0%,
+  100% {
+    border-color: var(--border-color);
+  }
+
+  50% {
+    border-color: var(--accent-primary);
+  }
+}
+
+/* ─── Focus-within card enhancement ─── */
+.card:focus-within {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
-/* ─── Selection Color ─── */
-::selection {
-  background: var(--accent-primary);
-  color: #fff;
+/* ─── Word Cloud Enhancement ─── */
+.cd-word {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ─── Smooth Theme Transitions ─── */
-*,
-*::before,
-*::after {
-  transition-property: background-color, border-color, color, box-shadow, opacity;
-  transition-duration: 0s;
+.cd-word:hover {
+  transform: scale(1.2) rotate(-2deg);
+  filter: brightness(1.3);
 }
 
-html[data-theme] .card,
-html[data-theme] .btn,
-html[data-theme] .input,
-html[data-theme] .select,
-html[data-theme] .badge,
-html[data-theme] .tab,
-html[data-theme] body {
-  transition-duration: 0.3s;
-  transition-timing-function: ease;
+/* ─── Tooltip Enhanced Position ─── */
+.tooltip-wrapper .tooltip {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ─── Loading Skeleton Pulse ─── */
-@keyframes skeletonPulse {
-
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
+/* ─── Select Option Hover ─── */
+.select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
-.skeleton {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  animation: skeletonPulse 1.5s ease-in-out infinite;
-}
+/* ═══════════════════════════════════════════════════════
+   PREMIUM EFFECTS v2 — Aurora, Stagger, Page Transitions
+   ═══════════════════════════════════════════════════════ */
 
-/* ─── Smooth Page Content Transition ─── */
-.main-content {
-  animation: pageEnter 0.35s ease-out;
-}
-
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ─── Nav Item Hover Glow ─── */
-.nav-item {
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-item::before {
+/* ─── Aurora Ambient Background Glow ─── */
+.app-layout::before {
   content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
-  transition: left 0.5s ease;
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(236, 72, 153, 0.02) 0%, transparent 50%);
+  animation: auroraShift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: -1;
 }
 
-.nav-item:hover::before {
-  left: 100%;
-}
-
-/* ─── Stat Card Hover Enhancement ─── */
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md), var(--shadow-glow);
-}
-
-/* ─── News Card Entrance ─── */
-@keyframes cardSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+@keyframes auroraShift {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  33% {
+    transform: translate(2%, -3%) rotate(1deg);
+  }
+
+  66% {
+    transform: translate(-1%, 2%) rotate(-1deg);
+  }
+
+  100% {
+    transform: translate(1%, -1%) rotate(0.5deg);
   }
 }
 
-.news-card {
-  animation: cardSlideUp 0.4s ease-out backwards;
+/* ─── Staggered Card Entry Animations ─── */
+.dt-task-card,
+.co-card,
+.paper-card,
+.news-card,
+.dash-stat-item,
+.dash-mini-card,
+.profile-stat-card,
+.profile-milestone {
+  animation: cardStaggerIn 0.5s ease-out both;
 }
 
+.dt-task-card:nth-child(1),
+.co-card:nth-child(1),
+.paper-card:nth-child(1),
 .news-card:nth-child(1) {
-  animation-delay: 0ms;
+  animation-delay: 0.05s;
 }
 
+.dt-task-card:nth-child(2),
+.co-card:nth-child(2),
+.paper-card:nth-child(2),
 .news-card:nth-child(2) {
-  animation-delay: 60ms;
+  animation-delay: 0.1s;
 }
 
+.dt-task-card:nth-child(3),
+.co-card:nth-child(3),
+.paper-card:nth-child(3),
 .news-card:nth-child(3) {
-  animation-delay: 120ms;
+  animation-delay: 0.15s;
 }
 
+.dt-task-card:nth-child(4),
+.co-card:nth-child(4),
+.paper-card:nth-child(4),
 .news-card:nth-child(4) {
-  animation-delay: 180ms;
+  animation-delay: 0.2s;
 }
 
+.dt-task-card:nth-child(5),
+.co-card:nth-child(5),
+.paper-card:nth-child(5),
 .news-card:nth-child(5) {
-  animation-delay: 240ms;
+  animation-delay: 0.25s;
 }
 
+.dt-task-card:nth-child(6),
+.co-card:nth-child(6),
+.paper-card:nth-child(6),
 .news-card:nth-child(6) {
-  animation-delay: 300ms;
+  animation-delay: 0.3s;
 }
 
-.news-card:nth-child(7) {
-  animation-delay: 360ms;
+.dash-stat-item:nth-child(1) {
+  animation-delay: 0.05s;
 }
 
-.news-card:nth-child(8) {
-  animation-delay: 420ms;
+.dash-stat-item:nth-child(2) {
+  animation-delay: 0.1s;
 }
 
-/* ─── Topic Node Hover ─── */
-.topic-node {
-  transition: all 0.25s ease;
+.dash-stat-item:nth-child(3) {
+  animation-delay: 0.15s;
 }
 
-.topic-node:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-glow);
+.dash-stat-item:nth-child(4) {
+  animation-delay: 0.2s;
 }
 
-/* ─── Enhanced Modal Entrance ─── */
-@keyframes modalSlideUp {
+@keyframes cardStaggerIn {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.97);
+    transform: translateY(16px) scale(0.97);
+    filter: blur(4px);
   }
 
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-.modal-content {
-  animation: modalSlideUp 0.25s ease-out;
+/* ─── Enhanced Sidebar Glow Effect ─── */
+.sidebar {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(10, 13, 26, 0.95) 100%);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
 }
 
-/* ─── Stagger for Trending & Research Pages ─── */
-.trending-page>*,
-.course-detail>*,
-.research-page>* {
-  animation: staggerFadeIn 0.4s ease-out backwards;
+.nav-item:hover {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08), transparent);
 }
 
-.trending-page>*:nth-child(1),
-.course-detail>*:nth-child(1),
-.research-page>*:nth-child(1) {
-  animation-delay: 0ms;
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.12), rgba(99, 102, 241, 0.04));
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
-.trending-page>*:nth-child(2),
-.course-detail>*:nth-child(2),
-.research-page>*:nth-child(2) {
-  animation-delay: 60ms;
+.nav-item.active::after {
+  display: none;
 }
 
-.trending-page>*:nth-child(3),
-.course-detail>*:nth-child(3),
-.research-page>*:nth-child(3) {
-  animation-delay: 120ms;
+/* ─── Smooth Page Transition ─── */
+.app-main {
+  animation: pageSlideIn 0.4s ease-out;
 }
 
-.trending-page>*:nth-child(4),
-.course-detail>*:nth-child(4),
-.research-page>*:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-/* ─── Floating Action Button Pulse ─── */
-@keyframes fabPulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--accent-glow);
-  }
-
-  50% {
-    box-shadow: 0 0 0 8px transparent;
-  }
-}
-
-.btn-primary:hover {
-  animation: fabPulse 1.5s infinite;
-}
-
-/* ─── Empty State Breathe Animation ─── */
-.empty-state svg {
-  animation: breathe 3s ease-in-out infinite;
-}
-
-@keyframes breathe {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.5;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 0.7;
-  }
-}
-
-/* ─── Toast/Message Slide In ─── */
-.profile-msg {
-  animation: slideInRight 0.3s ease-out;
-}
-
-@keyframes slideInRight {
+@keyframes pageSlideIn {
   from {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translateX(8px);
   }
 
   to {
@@ -1740,12 +2114,148 @@ html[data-theme] body {
   }
 }
 
-/* ─── Image Lazy Load Fade ─── */
-.news-card-image img,
-.profile-avatar-img {
-  transition: opacity 0.3s ease, transform 0.5s ease;
+/* ─── Tab Neon Indicator ─── */
+.dash-chart-tab.active,
+.tab-active {
+  position: relative;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.3), 0 0 24px rgba(99, 102, 241, 0.1);
 }
 
-.news-card-image:hover img {
-  transform: scale(1.03);
+/* ─── Enhanced Scrollbar ─── */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scrollbar-thumb), rgba(99, 102, 241, 0.2));
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--text-tertiary), rgba(99, 102, 241, 0.3));
+}
+
+/* ─── Card Tilt Effect (subtle 3D) ─── */
+.news-card:hover,
+.paper-card:hover {
+  box-shadow:
+    var(--shadow-lg),
+    0 0 30px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Premium Select Dropdown ─── */
+.select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7394' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ─── Focus Ring Accessibility ─── */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
+}
+
+/* ─── Loading Skeleton Shimmer ─── */
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--bg-tertiary) 25%,
+      rgba(99, 102, 241, 0.06) 37%,
+      var(--bg-tertiary) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ─── Topic Tree Row Hover ─── */
+.topic-row:hover,
+.subtopic-row:hover {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.04), transparent);
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Resource Row Hover ─── */
+.resource-row {
+  transition: all 0.2s ease;
+}
+
+.resource-row:hover {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.06), transparent);
+  transform: translateX(4px);
+}
+
+/* ─── Page Title Icon Bounce ─── */
+.page-header svg,
+.section-title svg {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.page-header:hover svg,
+.section-title:hover svg {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+/* ─── Enhanced Empty State ─── */
+.empty-state {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.02), transparent);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: all 0.3s ease;
+}
+
+.empty-state:hover {
+  border-color: var(--accent-primary);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), transparent);
+}
+
+/* ─── Gradient Text for Page Titles ─── */
+.dashboard-page h2,
+.daily-tasks-page h2,
+.courses-page h2,
+.research-page h2 {
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Floating Label Effect for Inputs ─── */
+.input-group label {
+  transition: all 0.2s ease;
+}
+
+.input-group:focus-within label {
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* ─── Reduced Motion Preference ─── */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .app-layout::before {
+    animation: none;
+  }
 }

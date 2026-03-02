@@ -101,7 +101,7 @@ export default function Login() {
                     <div className="login-illustration-content">
                         <div className="login-brand">
                             <div className="login-brand-icon">
-                                <img src="logo.png" height={100} width={100} />
+                                <img src="/logo.png" alt="TENX" height={100} width={100} />
                             </div>
                             <h1 className="login-brand-name">TENX Industry</h1>
                             <p className="login-brand-sub">Track Learning App</p>

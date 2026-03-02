@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { useTheme } from '../contexts/ThemeContext';
 import {
-    Edit3, Moon, Sun, Palette, LogOut, Award, Zap,
+    Edit3, LogOut, Award, Zap,
     BookOpen, FileText, CheckCircle, Clock, Flame, Target,
     Shield, TrendingUp, Calendar, X, Lock, Star, Trophy,
     Rocket, Crown, Brain, Coffee, Gift, Sparkles, Medal
@@ -11,7 +10,6 @@ import {
 import './Profile.css';
 
 // ─── Progressive Milestones System ───
-// 10 tiers of milestones, each harder than the last
 const MILESTONE_TIERS = [
     // Tier 1: Getting Started
     [
@@ -89,23 +87,39 @@ export default function Profile() {
         totalStudyMinutes, totalCurriculumItems, completedCurriculumItems,
         streak, profile, updateProfile,
     } = useData();
-    const { theme, setTheme, accentColor, setAccentColor, accentColors } = useTheme();
 
     const [editModal, setEditModal] = useState(false);
     const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
     const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
+    const [profileLoading, setProfileLoading] = useState(false);
     const [editData, setEditData] = useState({
-        displayName: profile?.displayName || user?.username || '',
-        bio: profile?.bio || '',
-        profileImage: profile?.profileImage || '',
+        displayName: '',
+        bio: '',
+        profileImage: '',
     });
 
-    const handleSaveProfile = () => {
-        updateProfile(editData);
-        if (updateUser) {
-            updateUser({ username: editData.displayName, profileImage: editData.profileImage });
+    // ─── Sync editData when profile or user data changes ───
+    useEffect(() => {
+        setEditData({
+            displayName: profile?.displayName || profile?.username || user?.username || '',
+            bio: profile?.bio || user?.bio || '',
+            profileImage: profile?.profileImage || user?.profileImage || '',
+        });
+    }, [profile, user]);
+
+    const handleSaveProfile = async () => {
+        setProfileLoading(true);
+        try {
+            updateProfile(editData);
+            if (updateUser) {
+                updateUser({ username: editData.displayName, profileImage: editData.profileImage });
+            }
+            setEditModal(false);
+        } catch (err) {
+            console.error('Failed to save profile:', err);
+        } finally {
+            setProfileLoading(false);
         }
-        setEditModal(false);
     };
 
     const handleUpdatePassword = async () => {
@@ -133,7 +147,6 @@ export default function Profile() {
     const totalCourses = courses.length;
     const studyHours = Math.round(totalStudyMinutes / 60);
 
-    // Count completed topics
     let topicsCompleted = 0;
     courses.forEach(c => c.topics?.forEach(t => {
         if (t.completed) topicsCompleted++;
@@ -144,14 +157,12 @@ export default function Profile() {
         tasksCompleted: completedTasks,
         courses: totalCourses,
         studyHours,
-        streak: streak.count,
+        streak: streak?.count || 0,
         papers: completedPapers || 0,
         topicsCompleted,
     };
 
     // ─── Determine current milestone tier ───
-    // Show the first tier that has at least one unachieved milestone
-    // If all milestones in a tier are achieved, show the next tier
     let currentTierIdx = 0;
     for (let i = 0; i < MILESTONE_TIERS.length; i++) {
         const allDone = MILESTONE_TIERS[i].every(m => m.check(stats));
@@ -167,6 +178,14 @@ export default function Profile() {
     const achievedCount = currentMilestones.filter(m => m.check(stats)).length;
     const totalMilestones = currentMilestones.length;
 
+    // Safe display values with fallbacks
+    const displayName = profile?.displayName || profile?.username || user?.username || 'User';
+    const displayBio = profile?.bio || user?.bio || 'Add a bio to your profile';
+    const displayImage = editData.profileImage || profile?.profileImage || user?.profileImage;
+    const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    }) : 'N/A';
+
     return (
         <div className="profile-page">
             {/* ═══ Hero Banner ═══ */}
@@ -174,17 +193,23 @@ export default function Profile() {
                 <div className="profile-bg-pattern"></div>
                 <div className="profile-info-row">
                     <div className="profile-avatar-wrapper">
-                        {editData.profileImage || profile?.profileImage ? (
-                            <img src={editData.profileImage || profile?.profileImage} alt="" className="profile-avatar-img" />
-                        ) : (
-                            <div className="profile-avatar-placeholder">{(profile?.displayName || user?.username || 'U')[0].toUpperCase()}</div>
-                        )}
+                        {displayImage ? (
+                            <img
+                                src={displayImage}
+                                alt={displayName}
+                                className="profile-avatar-img"
+                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
+                            />
+                        ) : null}
+                        <div className="profile-avatar-placeholder" style={displayImage ? { display: 'none' } : {}}>
+                            {displayName[0].toUpperCase()}
+                        </div>
                         <button className="profile-edit-btn" onClick={() => setEditModal(true)}><Edit3 size={14} /></button>
                     </div>
                     <div className="profile-text">
-                        <h1 className="profile-name">{profile?.displayName || user?.username}</h1>
-                        <p className="profile-bio">{profile?.bio || 'Add a bio to your profile'}</p>
-                        <div className="profile-join-date"><Calendar size={12} /> Joined {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</div>
+                        <h1 className="profile-name">{displayName}</h1>
+                        <p className="profile-bio">{displayBio}</p>
+                        <div className="profile-join-date"><Calendar size={12} /> Joined {joinDate}</div>
                     </div>
                 </div>
 
@@ -211,7 +236,7 @@ export default function Profile() {
                     </div>
                     <div className="profile-stat-card">
                         <div className="profile-stat-icon" style={{ background: 'rgba(245, 158, 11, 0.12)' }}><Flame size={22} color="#f59e0b" /></div>
-                        <div className="profile-stat-value">{streak.count}</div>
+                        <div className="profile-stat-value">{stats.streak}</div>
                         <div className="profile-stat-label">Day Streak</div>
                     </div>
                     <div className="profile-stat-card">
@@ -237,7 +262,7 @@ export default function Profile() {
                         </div>
                     </div>
                     <div className="profile-milestones-grid">
-                        {currentMilestones.map((m, i) => {
+                        {currentMilestones.map((m) => {
                             const achieved = m.check(stats);
                             return (
                                 <div key={m.key} className={`profile-milestone ${achieved ? 'achieved' : ''}`}>
@@ -256,43 +281,8 @@ export default function Profile() {
                     )}
                 </div>
 
-                {/* Right: Appearance & Account */}
+                {/* Right: Account Only (no appearance/theme) */}
                 <div className="profile-right-col">
-                    {/* Appearance */}
-                    <div className="card profile-appearance-card">
-                        <h3 className="section-title"><Palette size={18} /> Appearance</h3>
-
-                        <div className="profile-theme-toggle">
-                            <label>Theme</label>
-                            <div className="profile-theme-options">
-                                <button className={`profile-theme-btn ${theme === 'dark' ? 'active' : ''}`} onClick={() => setTheme('dark')}>
-                                    <Moon size={16} /> Dark
-                                </button>
-                                <button className={`profile-theme-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => setTheme('light')}>
-                                    <Sun size={16} /> Light
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="profile-accent-section">
-                            <label>Accent Color</label>
-                            <div className="profile-accent-grid">
-                                {accentColors.map(c => (
-                                    <button
-                                        key={c.value}
-                                        className={`profile-accent-btn ${accentColor === c.value ? 'active' : ''}`}
-                                        style={{ '--ac': c.value }}
-                                        onClick={() => setAccentColor(c.value)}
-                                        title={c.name}
-                                    >
-                                        <div className="profile-accent-swatch" />
-                                        {accentColor === c.value && <CheckCircle size={12} />}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Account */}
                     <div className="card profile-account-card">
                         <h3 className="section-title"><Shield size={18} /> Account</h3>
@@ -307,9 +297,7 @@ export default function Profile() {
                             </div>
                             <div className="profile-account-row">
                                 <span className="profile-account-label">Member since</span>
-                                <span className="profile-account-value">
-                                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                                </span>
+                                <span className="profile-account-value">{joinDate}</span>
                             </div>
                         </div>
 
@@ -361,7 +349,9 @@ export default function Profile() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setEditModal(false)}>Cancel</button>
-                            <button className="btn btn-primary" onClick={handleSaveProfile}>Save Changes</button>
+                            <button className="btn btn-primary" onClick={handleSaveProfile} disabled={profileLoading}>
+                                {profileLoading ? 'Saving...' : 'Save Changes'}
+                            </button>
                         </div>
                     </div>
                 </div>

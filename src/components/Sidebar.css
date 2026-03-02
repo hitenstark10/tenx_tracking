@@ -48,6 +48,14 @@
     box-shadow: 0 4px 12px var(--accent-glow);
 }
 
+.sidebar-logo-img {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
 .logo-text {
     display: flex;
     flex-direction: column;
@@ -56,9 +64,9 @@
 
 .logo-name {
     font-family: 'Poppins', sans-serif;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 800;
-    background: var(--accent-gradient);
+    background: linear-gradient(135deg, #6366f1, #a855f7);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -297,6 +305,10 @@
     }
 
     .sidebar .sidebar-profile-link {
+        justify-content: center;
+    }
+
+    .sidebar .sidebar-logo {
         justify-content: center;
     }
 }

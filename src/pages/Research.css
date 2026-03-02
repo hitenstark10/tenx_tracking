@@ -162,6 +162,13 @@
     gap: 16px;
 }
 
+/* ─── Responsive: Tablet ─── */
+@media (max-width: 1024px) {
+    .paper-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+}
+
 @media (max-width: 768px) {
     .paper-grid {
         grid-template-columns: 1fr 1fr;
@@ -175,5 +182,9 @@
 @media (max-width: 480px) {
     .paper-grid {
         grid-template-columns: 1fr;
+    }
+
+    .paper-card {
+        padding: 14px !important;
     }
 }

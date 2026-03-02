@@ -30,19 +30,10 @@ export default function Sidebar() {
             <div className="sidebar-inner">
                 {/* Logo */}
                 <div className="sidebar-logo">
-                    {/* <div className="logo-icon" style={{
-                        background: 'var(--accent-glow)',
-                        color: 'var(--accent-primary)',
-                        fontSize: '0.7rem',
-                        fontWeight: '800',
-                        letterSpacing: '-0.5px'
-                    }}>
-                        TENX
-                    </div> */}
-                    <img src="logo.png" alt={displayName} className="sidebar-profile-img" />
+                    <img src="/logo.png" alt="TENX Track Learning" className="sidebar-logo-img" />
                     {!collapsed && (
                         <div className="logo-text">
-                            <span className="logo-name" style={{ fontSize: '1.1rem', background: 'none', WebkitTextFillColor: 'var(--text-primary)', color: 'var(--text-primary)' }}>TENX Track Learning</span>
+                            <span className="logo-name">TENX Track Learning</span>
                         </div>
                     )}
                 </div>
