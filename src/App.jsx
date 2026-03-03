@@ -19,7 +19,7 @@ import './App.css';
 /* ─── Global Effects Hook ─── */
 function useGlobalEffects() {
   useEffect(() => {
-    // Card mouse-tracking glow
+    // Card mouse-tracking glow + spotlight
     const handleMouseMove = (e) => {
       const cards = document.querySelectorAll('.card');
       cards.forEach(card => {
@@ -29,11 +29,21 @@ function useGlobalEffects() {
         card.style.setProperty('--mouse-x', `${x}px`);
         card.style.setProperty('--mouse-y', `${y}px`);
       });
+
+      // Spotlight card effect
+      const spotlightCards = document.querySelectorAll('.card-spotlight');
+      spotlightCards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+        const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
+        card.style.setProperty('--spotlight-x', `${x}%`);
+        card.style.setProperty('--spotlight-y', `${y}%`);
+      });
     };
     document.addEventListener('mousemove', handleMouseMove, { passive: true });
 
-    // Scroll-reveal observer
-    const observer = new IntersectionObserver(
+    // Enhanced scroll-reveal observer (supports multiple directions)
+    const revealObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
@@ -41,13 +51,21 @@ function useGlobalEffects() {
           }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
     );
-    document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+
+    const revealSelectors = '.scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale';
+    document.querySelectorAll(revealSelectors).forEach(el => revealObserver.observe(el));
+
+    // Lazy image loaded handler
+    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+      if (img.complete) img.classList.add('loaded');
+      else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+    });
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      observer.disconnect();
+      revealObserver.disconnect();
     };
   }, []);
 }

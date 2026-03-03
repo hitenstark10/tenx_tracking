@@ -15,6 +15,10 @@ import {
 } from '../utils/storage';
 import { generateId, getToday, calculateStreak } from '../utils/helpers';
 import { BACKEND_URL } from '../config';
+import {
+    requestNotificationPermission, scheduleTaskNotifications,
+    notifyTaskComplete, notifyStreak
+} from '../utils/notifications';
 
 const DataContext = createContext();
 export const useData = () => useContext(DataContext);
@@ -128,9 +132,13 @@ export function DataProvider({ children }) {
             }
 
             setIsLoaded(true);
+
+            // Request notification permission & schedule task alerts
+            requestNotificationPermission();
+            const loadedTasks = tasks.found ? (tasks.value || []) : [];
+            if (loadedTasks.length > 0) scheduleTaskNotifications(loadedTasks);
         }).catch(err => {
             console.error('Data initialization failed:', err);
-            // Even on failure, mark as loaded so UI isn't stuck
             setIsLoaded(true);
         });
     }, [user]);
@@ -170,7 +178,13 @@ export function DataProvider({ children }) {
     // ─── Daily Tasks ───
     const addDailyTask = useCallback((task) => {
         const newTask = { id: generateId(), completed: false, createdDate: getToday(), ...task };
-        setDailyTasks(prev => { const next = [...prev, newTask]; saveDailyTasks(next); return next; });
+        setDailyTasks(prev => {
+            const next = [...prev, newTask];
+            saveDailyTasks(next);
+            // Reschedule notifications with new task
+            scheduleTaskNotifications(next);
+            return next;
+        });
     }, []);
 
     const updateDailyTask = useCallback((id, updates) => {
@@ -179,13 +193,23 @@ export function DataProvider({ children }) {
             saveDailyTasks(next);
             // Update streak
             if (updates.completed !== undefined) {
-                // We need access to latest state for calculation. 
-                // This is tricky inside callback. Relying on current state (closure) might be stale?
-                // But 'courses' etc are dependencies.
                 const newStreak = calculateStreak(next, streak, courses, researchPapers, newsRead);
                 setStreak(newStreak);
                 saveStreak(newStreak);
-                if (updates.completed) logActivity('tasks', 1);
+                if (updates.completed) {
+                    logActivity('tasks', 1);
+                    // Notify task complete
+                    const task = next.find(t => t.id === id);
+                    const today = getToday();
+                    const remaining = next.filter(t => t.date === today && !t.completed).length;
+                    notifyTaskComplete(task?.name || 'Task', remaining);
+                    // Reschedule remaining task notifications
+                    scheduleTaskNotifications(next);
+                    // Notify streak if it increased
+                    if (newStreak.count > streak.count && newStreak.count > 1) {
+                        setTimeout(() => notifyStreak(newStreak.count), 1500);
+                    }
+                }
             }
             return next;
         });

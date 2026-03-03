@@ -2243,6 +2243,419 @@ html {
   transform: translateY(-1px);
 }
 
+/* ═══════════════════════════════════════════════════════
+   PREMIUM EFFECTS v3 — Cutting-Edge 2025 Interactions
+   Inspired by Uiverse.io, CodePen, modern dark UIs
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Floating Particles Background ─── */
+.app-layout::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(99, 102, 241, 0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 60%, rgba(168, 85, 247, 0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 10%, rgba(236, 72, 153, 0.15) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 80%, rgba(52, 211, 153, 0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 40%, rgba(99, 102, 241, 0.25) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 20% 90%, rgba(168, 85, 247, 0.15) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 80% 10%, rgba(99, 102, 241, 0.2) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: -1;
+  animation: particleDrift 30s linear infinite;
+}
+
+@keyframes particleDrift {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(-20px);
+  }
+}
+
+/* ─── Neon Border Glow Cards ─── */
+.card-neon {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.card-neon::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.card-neon:hover::before {
+  opacity: 1;
+}
+
+/* ─── 3D Perspective Tilt on Cards ─── */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transition: transform 0.4s cubic-bezier(0.03, 0.98, 0.52, 0.99);
+}
+
+.card-3d:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) translateZ(10px);
+  box-shadow: var(--shadow-xl), 0 20px 60px rgba(99, 102, 241, 0.1);
+}
+
+/* ─── Morphing Gradient Border (animated border) ─── */
+@keyframes morphBorder {
+
+  0%,
+  100% {
+    border-image-source: linear-gradient(0deg, #6366f1, #a855f7);
+  }
+
+  25% {
+    border-image-source: linear-gradient(90deg, #a855f7, #ec4899);
+  }
+
+  50% {
+    border-image-source: linear-gradient(180deg, #ec4899, #6366f1);
+  }
+
+  75% {
+    border-image-source: linear-gradient(270deg, #6366f1, #22d3ee);
+  }
+}
+
+/* ─── Enhanced Scroll Reveal Variants ─── */
+.scroll-reveal-left {
+  opacity: 0;
+  transform: translateX(-30px);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.scroll-reveal-right {
+  opacity: 0;
+  transform: translateX(30px);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.scroll-reveal-scale {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal-scale.revealed {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ─── Text Gradient Shimmer Animation ─── */
+@keyframes textShimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.text-shimmer {
+  background: linear-gradient(90deg,
+      var(--text-primary) 0%,
+      var(--accent-primary-light) 25%,
+      var(--accent-secondary) 50%,
+      var(--accent-primary-light) 75%,
+      var(--text-primary) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: textShimmer 4s linear infinite;
+}
+
+/* ─── Glassmorphism v2 — Frosted Panel ─── */
+.glass-panel {
+  background: rgba(10, 13, 26, 0.6);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Pulse Ring Effect (for icons/avatars) ─── */
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.pulse-ring {
+  animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── Animated Gradient Background for Sections ─── */
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-bg-animated {
+  background: linear-gradient(-45deg, #060811, #0f121e, #151828, #0a0d1a);
+  background-size: 400% 400%;
+  animation: gradientFlow 15s ease infinite;
+}
+
+/* ─── Hover Line Reveal (for links/nav items) ─── */
+.hover-line {
+  position: relative;
+  display: inline-block;
+}
+
+.hover-line::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px;
+}
+
+.hover-line:hover::after {
+  width: 100%;
+}
+
+/* ─── Spotlight Card Effect (follows mouse) ─── */
+.card-spotlight {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(400px circle at var(--spotlight-x) var(--spotlight-y),
+      rgba(99, 102, 241, 0.1),
+      transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.card-spotlight:hover::after {
+  opacity: 1;
+}
+
+/* ─── Enhanced Button Variants ─── */
+.btn-glow {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: var(--accent-gradient);
+  border-radius: inherit;
+  z-index: -1;
+  filter: blur(16px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-glow:hover::after {
+  opacity: 0.6;
+}
+
+/* ─── Animated Counter Number ─── */
+@keyframes numberPop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ─── Enhanced card hover with inner glow ─── */
+.stat-card:hover,
+.dash-stat-item:hover {
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow:
+    var(--shadow-md),
+    0 0 30px rgba(99, 102, 241, 0.06),
+    inset 0 0 30px rgba(99, 102, 241, 0.03);
+}
+
+/* ─── Typing cursor for loading states ─── */
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
+  color: var(--accent-primary);
+  margin-left: 2px;
+}
+
+/* ─── Enhanced Link Hover with Underline Animation ─── */
+a:not(.btn):not(.nav-item):not(.landing-btn-primary):not(.landing-btn-ghost) {
+  position: relative;
+}
+
+/* ─── Noise Texture Overlay (subtle) ─── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+}
+
+/* ─── Smooth Image Loading ─── */
+img {
+  transition: opacity 0.3s ease;
+}
+
+img[loading="lazy"] {
+  opacity: 0;
+}
+
+img[loading="lazy"].loaded,
+img:not([loading="lazy"]) {
+  opacity: 1;
+}
+
+/* ─── Enhanced Tab Active Indicator ─── */
+.tab.active {
+  position: relative;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  width: 60%;
+  height: 2px;
+  background: var(--accent-gradient);
+  border-radius: 2px;
+}
+
+/* ─── Micro-interaction: Button Icon Spin on Hover ─── */
+.btn:hover svg {
+  transition: transform 0.3s ease;
+}
+
+.btn-primary:hover svg {
+  transform: rotate(5deg) scale(1.1);
+}
+
+/* ─── Card Grid Gap Animation ─── */
+.grid-2,
+.grid-3,
+.grid-4 {
+  transition: gap 0.3s ease;
+}
+
+/* ─── Premium Focus States for All Interactive Elements ─── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+/* ─── Smooth Color Transitions for Theme Consistency ─── */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0s;
+}
+
+.card,
+.btn,
+.badge,
+.input,
+.select,
+.textarea,
+.stat-card,
+.nav-item,
+.tab,
+.modal-content {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ─── Reduced Motion Preference ─── */
 @media (prefers-reduced-motion: reduce) {
 
@@ -2255,7 +2668,12 @@ html {
     scroll-behavior: auto !important;
   }
 
-  .app-layout::before {
+  .app-layout::before,
+  .app-layout::after {
     animation: none;
+  }
+
+  body::after {
+    display: none;
   }
 }
