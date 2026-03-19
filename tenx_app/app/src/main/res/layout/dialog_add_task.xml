@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@color/bg_card">
+
+    <EditText
+        android:id="@+id/taskNameInput"
+        style="@style/TenxInput"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:hint="@string/task_name"
+        android:inputType="text"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/taskDescInput"
+        style="@style/TenxInput"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:hint="@string/description"
+        android:inputType="text"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/priority"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:layout_marginBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/prioritySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="@drawable/bg_input"
+        android:paddingHorizontal="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/dateSelectBtn"
+        style="@style/BtnGhost"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:text="@string/date"
+        android:layout_marginBottom="12dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <Button
+            android:id="@+id/startTimeBtn"
+            style="@style/BtnGhost"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="@string/start_time"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/endTimeBtn"
+            style="@style/BtnGhost"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="@string/end_time"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+</LinearLayout>
