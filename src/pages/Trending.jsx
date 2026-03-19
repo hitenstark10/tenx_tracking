@@ -3,13 +3,13 @@ import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
 import {
     TrendingUp, Search, Bookmark, BookmarkCheck, ExternalLink,
-    Eye, Globe, Loader, RefreshCw
+    Eye, Globe, Loader, RefreshCw, Share2, Copy, Link2, Check
 } from 'lucide-react';
 import './Trending.css';
 import { BACKEND_URL } from '../config';
 
 // ─── Constants ───
-const NEWS_INTERVAL_MS = 288 * 60 * 1000; // 288 minutes (~5 calls/day)
+const NEWS_INTERVAL_MS = 288 * 60 * 1000;
 const NEWS_CACHE_KEY = 'tenx_news_articles';
 const NEWS_CACHE_DATE_KEY = 'tenx_news_cache_date';
 
@@ -26,16 +26,15 @@ export default function Trending() {
     const [filterCat, setFilterCat] = useState('all');
     const [filterState, setFilterState] = useState('all');
     const [readerArticle, setReaderArticle] = useState(null);
+    const [copiedId, setCopiedId] = useState(null);
     const newsTimerRef = useRef(null);
 
     // ─── Daily Reset Logic ───
-    // On each load: if it's a new day, clear non-bookmarked articles from cache
     const performDailyReset = useCallback(() => {
         const cachedDate = localStorage.getItem(NEWS_CACHE_DATE_KEY);
         const today = getToday();
 
         if (cachedDate && cachedDate !== today) {
-            // New day: remove all non-bookmarked articles
             const bookmarkedIds = new Set(bookmarks.map(b => b.id));
             const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || '[]');
             const kept = cached.filter(a => bookmarkedIds.has(a.id));
@@ -48,7 +47,6 @@ export default function Trending() {
             localStorage.setItem(NEWS_CACHE_DATE_KEY, today);
         }
 
-        // Same day: return existing cache
         try {
             return JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || '[]');
         } catch {
@@ -70,7 +68,7 @@ export default function Trending() {
                 title: a.title,
                 summary: a.description || a.summary || '',
                 content: a.content || a.description || '',
-                image: a.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop',
+                image: a.image || a.imageUrl || a.urlToImage || a.thumbnail || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop',
                 source: typeof a.source === 'object' ? a.source.name : (a.source || 'Unknown'),
                 url: a.url,
                 date: a.date || a.publishedAt?.slice(0, 10) || getToday(),
@@ -78,13 +76,11 @@ export default function Trending() {
             }));
 
             if (newArticles.length > 0) {
-                // APPEND new articles below existing ones (no duplicates)
                 setArticles(prev => {
                     const existingTitles = new Set(prev.map(a => a.title));
                     const unique = newArticles.filter(a => !existingTitles.has(a.title));
                     const merged = [...prev, ...unique];
 
-                    // Persist to localStorage
                     try {
                         localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(merged));
                         localStorage.setItem(NEWS_CACHE_DATE_KEY, getToday());
@@ -97,25 +93,20 @@ export default function Trending() {
             return newArticles;
         } catch (err) {
             console.warn('News API fetch failed, using cache:', err.message);
-            // On failure: use cached articles (already loaded)
             return [];
         }
     }, []);
 
-    // ─── Initialize: Daily reset → Load cache → Fetch fresh ───
+    // ─── Initialize ───
     useEffect(() => {
         const init = async () => {
-            // 1. Perform daily reset (clears non-bookmarked if new day)
             const cachedArticles = performDailyReset();
             setArticles(cachedArticles);
-
-            // 2. Fetch fresh articles from API
             await fetchNews();
             setLoading(false);
         };
         init();
 
-        // 3. Set up timer: fetch every 288 minutes
         newsTimerRef.current = setInterval(fetchNews, NEWS_INTERVAL_MS);
         return () => clearInterval(newsTimerRef.current);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +121,44 @@ export default function Trending() {
 
     const isBookmarked = (id) => bookmarks.some(b => b.id === id);
 
-    // ─── Filtering: merge current articles + bookmarks not in list ───
+    // ─── Share & Copy ───
+    const handleShare = async (article) => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: article.title,
+                    text: article.summary || article.title,
+                    url: article.url,
+                });
+            } catch (err) {
+                // User cancelled or error
+                if (err.name !== 'AbortError') {
+                    handleCopyLink(article);
+                }
+            }
+        } else {
+            handleCopyLink(article);
+        }
+    };
+
+    const handleCopyLink = (article) => {
+        navigator.clipboard.writeText(article.url).then(() => {
+            setCopiedId(article.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const ta = document.createElement('textarea');
+            ta.value = article.url;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            setCopiedId(article.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        });
+    };
+
+    // ─── Filtering ───
     const filtered = useMemo(() => {
         const mergedMap = new Map();
         articles.forEach(a => mergedMap.set(a.id, a));
@@ -164,6 +192,7 @@ export default function Trending() {
             <div className="page-header">
                 <h1><TrendingUp size={28} /> Trending in AI/ML</h1>
                 <div className="trending-header-actions">
+                    <span className="trending-article-count">{filtered.length} articles</span>
                     <button
                         className={`btn btn-ghost btn-sm trending-refresh-btn ${refreshing ? 'spinning' : ''}`}
                         onClick={handleRefresh}
@@ -191,11 +220,22 @@ export default function Trending() {
                 <div className="news-grid">
                     {filtered.map(article => (
                         <div key={article.id} className={`news-card ${isArticleRead(article.id) ? 'visited' : ''}`}>
-                            <div className="news-card-image" onClick={() => openReader(article)}>
-                                <img src={article.image} alt={article.title} loading="lazy" />
-                                <div className="news-card-category"><span className="badge badge-info">{article.category}</span></div>
-                                {isArticleRead(article.id) && <div className="news-read-badge"><Eye size={12} /> Read</div>}
-                            </div>
+                            {article.image ? (
+                                <div className="news-card-image" onClick={() => openReader(article)}>
+                                    <img
+                                        src={article.image}
+                                        alt={article.title}
+                                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop'; }}
+                                    />
+                                    <div className="news-card-category"><span className="badge badge-info">{article.category}</span></div>
+                                    {isArticleRead(article.id) && <div className="news-read-badge"><Eye size={12} /> Read</div>}
+                                </div>
+                            ) : (
+                                <div className="news-card-no-image" onClick={() => openReader(article)}>
+                                    <div className="news-card-category"><span className="badge badge-info">{article.category}</span></div>
+                                    {isArticleRead(article.id) && <div className="news-read-badge"><Eye size={12} /> Read</div>}
+                                </div>
+                            )}
                             <div className="news-card-body">
                                 <h3 className="news-card-title" onClick={() => openReader(article)}>{article.title}</h3>
                                 <p className="news-card-summary">{article.summary}</p>
@@ -205,12 +245,41 @@ export default function Trending() {
                                         <span className="news-date">{article.date}</span>
                                     </div>
                                     <div className="news-card-actions">
-                                        <button className={`btn btn-ghost btn-icon btn-sm ${isBookmarked(article.id) ? 'bookmarked' : ''}`}
-                                            onClick={() => toggleBookmark(article)} title={isBookmarked(article.id) ? 'Remove' : 'Bookmark'}>
+                                        <button
+                                            className={`btn btn-ghost btn-icon btn-sm ${isBookmarked(article.id) ? 'bookmarked' : ''}`}
+                                            onClick={() => toggleBookmark(article)}
+                                            title={isBookmarked(article.id) ? 'Remove Bookmark' : 'Bookmark'}
+                                        >
                                             {isBookmarked(article.id) ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
                                         </button>
-                                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => visitSource(article)} title="Source"><ExternalLink size={16} /></button>
-                                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openReader(article)} title="Read"><Eye size={16} /></button>
+                                        <button
+                                            className="btn btn-ghost btn-icon btn-sm"
+                                            onClick={() => handleShare(article)}
+                                            title="Share"
+                                        >
+                                            <Share2 size={16} />
+                                        </button>
+                                        <button
+                                            className={`btn btn-ghost btn-icon btn-sm ${copiedId === article.id ? 'copied' : ''}`}
+                                            onClick={() => handleCopyLink(article)}
+                                            title={copiedId === article.id ? 'Copied!' : 'Copy Link'}
+                                        >
+                                            {copiedId === article.id ? <Check size={16} /> : <Link2 size={16} />}
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost btn-icon btn-sm"
+                                            onClick={() => visitSource(article)}
+                                            title="Open Source"
+                                        >
+                                            <ExternalLink size={16} />
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost btn-icon btn-sm"
+                                            onClick={() => openReader(article)}
+                                            title="Read"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -228,7 +297,7 @@ export default function Trending() {
                             <span className="reader-source">{readerArticle.source} · {readerArticle.date}</span>
                         </div>
                         <h1 className="reader-title">{readerArticle.title}</h1>
-                        <img src={readerArticle.image} alt="" className="reader-image" />
+                        <img src={readerArticle.image} alt="" className="reader-image" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=340&fit=crop'; }} />
                         <div className="reader-content">
                             {(readerArticle.content || readerArticle.summary || '').split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
                         </div>
@@ -236,6 +305,12 @@ export default function Trending() {
                             <button className="btn btn-primary" onClick={() => window.open(readerArticle.url, '_blank')}><ExternalLink size={16} /> Read Full Article</button>
                             <button className={`btn ${isBookmarked(readerArticle.id) ? 'btn-secondary' : 'btn-ghost'}`} onClick={() => toggleBookmark(readerArticle)}>
                                 {isBookmarked(readerArticle.id) ? <><BookmarkCheck size={16} /> Bookmarked</> : <><Bookmark size={16} /> Bookmark</>}
+                            </button>
+                            <button className="btn btn-ghost" onClick={() => handleShare(readerArticle)}>
+                                <Share2 size={16} /> Share
+                            </button>
+                            <button className="btn btn-ghost" onClick={() => handleCopyLink(readerArticle)}>
+                                {copiedId === readerArticle.id ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy Link</>}
                             </button>
                         </div>
                     </div>

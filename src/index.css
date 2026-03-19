@@ -915,8 +915,9 @@ a:hover {
 }
 
 .badge-info {
-  background: var(--info-bg);
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(34, 211, 238, 0.1));
   color: var(--info);
+  border: 1px solid rgba(96, 165, 250, 0.1);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1386,6 +1387,18 @@ a:hover {
 
 .dashboard-page>*:nth-child(5) {
   animation-delay: 240ms;
+}
+
+.dashboard-page>*:nth-child(6) {
+  animation-delay: 300ms;
+}
+
+.dashboard-page>*:nth-child(7) {
+  animation-delay: 360ms;
+}
+
+.dashboard-page>*:nth-child(8) {
+  animation-delay: 420ms;
 }
 
 /* ─── News Cards Stagger ─── */

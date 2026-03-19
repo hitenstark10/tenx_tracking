@@ -16,6 +16,23 @@
     box-shadow: var(--shadow-md);
 }
 
+.profile-hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #a78bfa, #ec4899, #22d3ee, #6366f1);
+    background-size: 300% 100%;
+    animation: gradientShift 5s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
 .profile-bg-pattern {
     position: absolute;
     top: 0;

@@ -2,6 +2,13 @@
     animation: fadeIn 0.4s ease-out;
 }
 
+.courses-page .page-header h1 {
+    background: linear-gradient(135deg, var(--text-primary), #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 .co-analytics-row {
     display: grid;
     grid-template-columns: 1fr 1.5fr 1.5fr;
@@ -80,10 +87,17 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
-    background: var(--accent-gradient);
+    height: 3px;
+    background: linear-gradient(90deg, #a78bfa, #c084fc, #e879f9);
+    background-size: 200% 100%;
     opacity: 0;
     transition: opacity 0.3s;
+    animation: gradientShift 4s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 
 .co-card:hover::before {
