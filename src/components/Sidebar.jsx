@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import {
@@ -29,14 +29,14 @@ export default function Sidebar() {
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
             <div className="sidebar-inner">
                 {/* Logo */}
-                <div className="sidebar-logo">
+                <Link to="/dashboard" className="sidebar-logo" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <img src="/logo.png" alt="TENX Track Learning" className="sidebar-logo-img" />
                     {!collapsed && (
                         <div className="logo-text">
                             <span className="logo-name">TENX Track Learning</span>
                         </div>
                     )}
-                </div>
+                </Link>
 
                 {/* User Profile Section — below logo, above nav */}
                 <div className="sidebar-profile-section">
