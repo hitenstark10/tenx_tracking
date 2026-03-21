@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // ─── Configuration ───────────────────────────────────
 const PORT = process.env.PORT || 5005;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tenx-tracking.vercel.app';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -23,9 +23,7 @@ const app = express();
 app.use(cors({
     origin: [
         FRONTEND_URL,
-        'http://localhost:5173', 'http://localhost:5174',
-        'http://localhost:3000', 'http://127.0.0.1:5173',
-        'http://127.0.0.1:5174',
+        'https://tenx-tracking.vercel.app', 'https://tenx-api.onrender.com'
     ],
     credentials: true,
 }));
